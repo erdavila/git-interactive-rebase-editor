@@ -67,6 +67,8 @@ ESC - cancel and quit
 
         def init(self):
             curses.curs_set(0)
+            curses.init_pair(HIGHLIGHTED, curses.COLOR_WHITE, curses.COLOR_RED)
+            curses.init_pair(SELECTED, curses.COLOR_WHITE, curses.COLOR_YELLOW)
 
             self.items = []
             with open(self.file) as f:
@@ -77,16 +79,21 @@ ESC - cancel and quit
                         commit = line[5:].strip()
                         self.items.append(('p', commit))
 
-            self.highlighted = 0
+            self.first_displayed_item = 0
+            self.highlighted_item = 0
             self.selected = False
 
-            curses.init_pair(HIGHLIGHTED, curses.COLOR_WHITE, curses.COLOR_RED)
-            curses.init_pair(SELECTED, curses.COLOR_WHITE, curses.COLOR_YELLOW)
+            available_lines = curses.LINES - len(INSTRUCTIONS) - 1
+            self.available_lines = available_lines
+            self.first_linenum = 0
+            self.scrollable = len(self.items) > self.available_lines
+            if self.scrollable:
+                self.available_lines -= 2
+                self.first_linenum = 1
 
-            for index in range(len(self.items)):
-                self.draw_line(index)
+            self.draw_all()
 
-            for index, line in enumerate(INSTRUCTIONS, len(self.items) + 1):
+            for index, line in enumerate(INSTRUCTIONS, available_lines + 1):
                 self.stdscr.addstr(index, 0, line)
 
             self.stdscr.refresh()
@@ -100,7 +107,7 @@ ESC - cancel and quit
                     self.move_highlight(+1)
                 elif ch == KEY_SPACE:
                     self.selected = not self.selected
-                    self.draw_line(self.highlighted)
+                    self.draw_line(item=self.highlighted_item)
                 elif ch == KEY_ENTER:
                     self.save()
                     break
@@ -114,15 +121,27 @@ ESC - cancel and quit
                 self.stdscr.refresh()
 
         def move_highlight(self, delta):
-            new_highlight = self.highlighted + delta
-            if new_highlight >= 0 and new_highlight < len(self.items):
-                old_highlight = self.highlighted
-                self.highlighted = new_highlight
+            new_highlighted_item = self.highlighted_item + delta
+            if new_highlighted_item >= 0 and new_highlighted_item < len(self.items):
+                old_highlighted_item = self.highlighted_item
+                self.highlighted_item = new_highlighted_item
                 if self.selected:
-                    self.items[old_highlight], self.items[new_highlight] = self.items[new_highlight], self.items[old_highlight]
+                    self.swap_items(old_highlighted_item, new_highlighted_item)
 
-                self.draw_line(old_highlight)
-                self.draw_line(new_highlight)
+                if self.highlighted_item < self.first_displayed_item:
+                    assert self.scrollable
+                    self.first_displayed_item -= 1
+                    self.draw_all()
+                elif self.highlighted_item > self.last_displayed_item:
+                    assert self.scrollable
+                    self.first_displayed_item += 1
+                    self.draw_all()
+                else:
+                    self.draw_line(item=old_highlighted_item)
+                    self.draw_line(item=new_highlighted_item)
+
+        def swap_items(self, i, j):
+            self.items[i], self.items[j] = self.items[j], self.items[i]
 
         def save(self):
             with open(self.file, 'w') as f:
@@ -136,16 +155,45 @@ ESC - cancel and quit
                 print('', file=f)
 
         def set_action(self, action_code):
-            _, commit = self.items[self.highlighted]
-            self.items[self.highlighted] = (action_code, commit)
-            self.draw_line(self.highlighted)
+            _, commit = self.items[self.highlighted_item]
+            self.items[self.highlighted_item] = (action_code, commit)
+            self.draw_line(item=self.highlighted_item)
 
-        def draw_line(self, index):
-            action_code, commit = self.items[index]
+        @property
+        def last_displayed_item(self):
+            return self.first_displayed_item + self.available_lines - 1
+
+        def draw_all(self):
+            num_lines = min(len(self.items), self.available_lines)
+            for linenum in range(num_lines):
+                self.draw_line(linenum=linenum)
+
+            if self.scrollable:
+                items_before = self.first_displayed_item
+                items_after = len(self.items) - self.last_displayed_item - 1
+
+                y = 0
+                self.stdscr.addstr(y, 0, "↑ %d" % items_before)
+                self.stdscr.clrtoeol()
+
+                y = self.available_lines + 1
+                self.stdscr.addstr(y, 0, "↓ %d" % items_after)
+                self.stdscr.clrtoeol()
+
+        def draw_line(self, linenum=None, item=None):
+            assert (linenum is None) != (item is None)
+            if item is None:
+                item = linenum + self.first_displayed_item
+            else:
+                linenum = item - self.first_displayed_item
+
+            y = linenum + self.first_linenum
+
+            action_code, commit = self.items[item]
             action = ACTIONS[action_code].ljust(6)
 
             prefix, suffix = '   ', '   '
-            if index == self.highlighted:
+            if item == self.highlighted_item:
                 if self.selected:
                     prefix, suffix = ' < ', ' > '
                     attr = curses.A_BOLD | curses.color_pair(SELECTED)
@@ -155,7 +203,7 @@ ESC - cancel and quit
                 attr = 0
 
             line = prefix + action + ' ' + commit + suffix
-            self.stdscr.addstr(index, 0, line, attr)
+            self.stdscr.addstr(y, 0, line, attr)
             self.stdscr.clrtoeol()
 
     reorder = Reorder(file)
