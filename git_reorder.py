@@ -41,6 +41,21 @@ def editor_main(file):
         'd': 'drop',
     }
 
+    INSTRUCTIONS = """
+Commands:
+p - pick (use commit)
+r - reword (use commit, but edit the commit message)
+e - edit (use commit, but stop for amending)
+s - squash (use commit, but meld into previous commit)
+f - fixup (like "squash", but discard this commit's log message)
+d - drop (remove commit)
+SPACE - select/deselect commit item highlighted
+UP/DOWN - move highlighter. If a commit is selected, also move it
+ENTER - confirm and quit
+ESC - cancel and quit
+    """.split("\n")
+    INSTRUCTIONS = [line.strip() for line in INSTRUCTIONS if line.strip() != ""]
+
     class Reorder:
         def __init__(self, file):
             self.file = file
@@ -70,6 +85,10 @@ def editor_main(file):
 
             for index in range(len(self.items)):
                 self.draw_line(index)
+
+            for index, line in enumerate(INSTRUCTIONS, len(self.items) + 1):
+                self.stdscr.addstr(index, 0, line)
+
             self.stdscr.refresh()
 
         def loop(self):
