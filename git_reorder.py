@@ -1,28 +1,21 @@
 #!/usr/bin/env python3
 import sys
-import os.path
 
-def wrapper_main(num_commits):
+def wrapper_main(my_path, options):
     import subprocess
-    my_path = sys.argv[0]
-
-    if num_commits <= 0:
-        base = '--root'
-    else:
-        base = 'HEAD~%d' % num_commits
 
     cmd = [
         'git',
-        '-c', 'core.editor=' + my_path,
+        '-c', 'sequence.editor=' + my_path + ' --',
         'rebase',
         '-i',
-        base,
-    ]
+    ] + options
     status = subprocess.call(cmd)
     sys.exit(status)
 
 def editor_main(file):
     import curses
+    import os
     os.environ.setdefault('ESCDELAY', '25')
 
     KEY_ENTER = 10
@@ -54,7 +47,8 @@ UP/DOWN - move highlighter. If a commit is selected, also move it
 ENTER - confirm and quit
 ESC - cancel and quit
     """.split("\n")
-    INSTRUCTIONS = [line.strip() for line in INSTRUCTIONS if line.strip() != ""]
+    INSTRUCTIONS = [line.strip() for line in INSTRUCTIONS]
+    INSTRUCTIONS = [line for line in INSTRUCTIONS if line]
 
     class Reorder:
         def __init__(self, file):
@@ -74,10 +68,12 @@ ESC - cancel and quit
             with open(self.file) as f:
                 for line in f:
                     line = line.strip()
-                    if line != '' and line[0] != '#':
+                    if line != '' and line[0] != '#' and line != 'noop':
                         assert line.startswith('pick ')
                         commit = line[5:].strip()
                         self.items.append(('p', commit))
+            if len(self.items) == 0:
+                self.cancel_and_quit()
 
             self.first_displayed_item = 0
             self.highlighted_item = 0
@@ -109,11 +105,9 @@ ESC - cancel and quit
                     self.selected = not self.selected
                     self.draw_line(item=self.highlighted_item)
                 elif ch == KEY_ENTER:
-                    self.save()
-                    break
+                    self.save_and_quit()
                 elif ch == KEY_ESC:
-                    self.cancel()
-                    break
+                    self.cancel_and_quit()
                 else:
                     char = chr(ch).lower()
                     if char in ACTIONS.keys():
@@ -143,16 +137,18 @@ ESC - cancel and quit
         def swap_items(self, i, j):
             self.items[i], self.items[j] = self.items[j], self.items[i]
 
-        def save(self):
+        def save_and_quit(self):
             with open(self.file, 'w') as f:
                 for action_code, commit in self.items:
                     action = ACTIONS[action_code]
                     line = '%s %s' % (action, commit)
                     print(line, file=f)
+            sys.exit(0)
 
-        def cancel(self):
+        def cancel_and_quit(self):
             with open(self.file, 'w') as f:
                 print('', file=f)
+            sys.exit(0)
 
         def set_action(self, action_code):
             _, commit = self.items[self.highlighted_item]
@@ -209,21 +205,18 @@ ESC - cancel and quit
     reorder = Reorder(file)
     curses.wrapper(reorder.main)
 
-args = sys.argv[1:]
-if len(args) == 1:
-    arg = args[0]
-    try:
-        num_commits = int(arg)
-    except ValueError:
-        if os.path.isfile(arg):
-            editor_main(file=arg)
-        elif arg == '--root':
-            wrapper_main(num_commits=-1)
-        else:
-            sys.exit("What should I do with %r?!" % arg)
-    else:
-        wrapper_main(num_commits)
-elif len(args) == 0:
-    sys.exit("What?!")
+options = sys.argv[1:]
+if len(options) == 2 and options[0] == "--":
+    editor_main(file=options[1])
 else:
-    sys.exit("What should I do with %r?!" % args)
+    INCOMPATIBLE_OPTIONS = {
+        '--continue', '--abort', '--quit', '--skip', '--edit-todo',
+        '--ignore-whitespace', '--whitespace', '--committer-date-is-author-date',
+        '--ignore-date', '--signoff', '-i', '--interactive', '-x', '--exec'
+    }
+    for opt in options:
+        if opt in INCOMPATIBLE_OPTIONS:
+            sys.exit("Rebase option %r cannot be used" % opt)
+        elif opt.startswith('--whitespace='):
+            sys.exit("Rebase option %r cannot be used" % '--whitespace')
+    wrapper_main(sys.argv[0], options)
