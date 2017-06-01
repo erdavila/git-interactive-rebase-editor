@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
 import sys
 
+FILE_ARG_DELIMITER = '--'
+
 def wrapper_main(my_path, options):
     import subprocess
 
+    editor_cmd = my_path + ' ' + FILE_ARG_DELIMITER
     cmd = [
         'git',
-        '-c', 'sequence.editor=' + my_path + ' --',
+        '-c', 'sequence.editor=' + editor_cmd,
         'rebase',
         '-i',
     ] + options
@@ -86,10 +89,10 @@ ESC - cancel and quit
                 self.available_lines -= 2
                 self.first_linenum = 1
 
-            self.draw_all()
+            self.draw_all_items()
 
             for index, line in enumerate(INSTRUCTIONS, available_lines + 1):
-                self.stdscr.addstr(index, 0, line)
+                self.draw_line(index, line)
 
             self.stdscr.refresh()
 
@@ -102,7 +105,7 @@ ESC - cancel and quit
                     self.move_highlight(+1)
                 elif ch == KEY_SPACE:
                     self.selected = not self.selected
-                    self.draw_line(item=self.highlighted_item)
+                    self.draw_item(item=self.highlighted_item)
                 elif ch == KEY_ENTER:
                     self.save_and_quit()
                 elif ch == KEY_ESC:
@@ -124,14 +127,14 @@ ESC - cancel and quit
                 if self.highlighted_item < self.first_displayed_item:
                     assert self.scrollable
                     self.first_displayed_item -= 1
-                    self.draw_all()
+                    self.draw_all_items()
                 elif self.highlighted_item > self.last_displayed_item:
                     assert self.scrollable
                     self.first_displayed_item += 1
-                    self.draw_all()
+                    self.draw_all_items()
                 else:
-                    self.draw_line(item=old_highlighted_item)
-                    self.draw_line(item=new_highlighted_item)
+                    self.draw_item(item=old_highlighted_item)
+                    self.draw_item(item=new_highlighted_item)
 
         def swap_items(self, i, j):
             self.items[i], self.items[j] = self.items[j], self.items[i]
@@ -152,30 +155,28 @@ ESC - cancel and quit
         def set_action(self, action_code):
             _, commit = self.items[self.highlighted_item]
             self.items[self.highlighted_item] = (action_code, commit)
-            self.draw_line(item=self.highlighted_item)
+            self.draw_item(item=self.highlighted_item)
 
         @property
         def last_displayed_item(self):
             return self.first_displayed_item + self.available_lines - 1
 
-        def draw_all(self):
+        def draw_all_items(self):
             num_lines = min(len(self.items), self.available_lines)
             for linenum in range(num_lines):
-                self.draw_line(linenum=linenum)
+                self.draw_item(linenum=linenum)
 
             if self.scrollable:
                 items_before = self.first_displayed_item
                 items_after = len(self.items) - self.last_displayed_item - 1
 
                 y = 0
-                self.stdscr.addstr(y, 0, "↑ %d" % items_before)
-                self.stdscr.clrtoeol()
+                self.draw_line(y, "↑ %d" % items_before)
 
                 y = self.available_lines + 1
-                self.stdscr.addstr(y, 0, "↓ %d" % items_after)
-                self.stdscr.clrtoeol()
+                self.draw_line(y, "↓ %d" % items_after)
 
-        def draw_line(self, linenum=None, item=None):
+        def draw_item(self, linenum=None, item=None):
             assert (linenum is None) != (item is None)
             if item is None:
                 item = linenum + self.first_displayed_item
@@ -198,14 +199,17 @@ ESC - cancel and quit
                 attr = 0
 
             line = prefix + action + ' ' + commit + suffix
-            self.stdscr.addstr(y, 0, line, attr)
+            self.draw_line(y, line, attr)
+
+        def draw_line(self, y, line, *attrs):
+            self.stdscr.addstr(y, 0, line, *attrs)
             self.stdscr.clrtoeol()
 
     reorder = Reorder(file)
     curses.wrapper(reorder.main)
 
 options = sys.argv[1:]
-if len(options) == 2 and options[0] == "--":
+if len(options) == 2 and options[0] == FILE_ARG_DELIMITER:
     editor_main(file=options[1])
 else:
     INCOMPATIBLE_OPTIONS = {
