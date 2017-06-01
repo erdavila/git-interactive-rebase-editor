@@ -35,20 +35,19 @@ def editor_main(file):
     }
 
     INSTRUCTIONS = """
-Commands:
-p - pick (use commit)
-r - reword (use commit, but edit the commit message)
-e - edit (use commit, but stop for amending)
-s - squash (use commit, but meld into previous commit)
-f - fixup (like "squash", but discard this commit's log message)
-d - drop (remove commit)
+Set action on highlighted commit:
+  P - pick (use commit)
+  R - reword (use commit, but edit the commit message)
+  E - edit (use commit, but stop for amending)
+  S - squash (use commit, but meld into previous commit)
+  F - fixup (like "squash", but discard this commit's log message)
+  D - drop (remove commit)
 SPACE - select/deselect commit item highlighted
 UP/DOWN - move highlighter. If a commit is selected, also move it
 ENTER - confirm and quit
 ESC - cancel and quit
     """.split("\n")
-    INSTRUCTIONS = [line.strip() for line in INSTRUCTIONS]
-    INSTRUCTIONS = [line for line in INSTRUCTIONS if line]
+    INSTRUCTIONS = [line for line in INSTRUCTIONS if line.strip()]
 
     class Reorder:
         def __init__(self, file):
