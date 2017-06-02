@@ -22,18 +22,21 @@ def editor_main(file):
     import os
     os.environ.setdefault('ESCDELAY', '25')
 
-    KEY_ENTER = 10
-    KEY_CTRL_X = 24
-    KEY_ESC = 27
-    KEY_SPACE = 32
+    KEY_CTRL_A = curses.ascii.SOH  #   1
+    KEY_CTRL_D = curses.ascii.EOT  #   4
+    KEY_CTRL_E = curses.ascii.ENQ  #   5
+    KEY_ENTER = curses.ascii.NL    #  10
+    KEY_CTRL_X = curses.ascii.CAN  #  24
+    KEY_ESC = curses.ascii.ESC     #  27
+    KEY_SPACE = curses.ascii.SP    #  32
     KEY_PLUS = 43
     KEY_MINUS = 45
-    KEY_DELETE = 330
-    KEY_INSERT = 331
-
-    HIGHLIGHTED = 1
-    SELECTED = 2
-    EDIT = 3
+    KEY_DOWN = curses.KEY_DOWN     # 258
+    KEY_UP = curses.KEY_UP         # 259
+    KEY_HOME = curses.KEY_HOME     # 262
+    KEY_DELETE = curses.KEY_DC     # 330
+    KEY_INSERT = curses.KEY_IC     # 331
+    KEY_END = curses.KEY_END       # 360
 
     MAX_EDIT_SIZE = 60
     class CancelEdit(Exception): pass
@@ -77,9 +80,10 @@ ESC: cancel and quit
 
         def init(self):
             curses.curs_set(0)
-            curses.init_pair(HIGHLIGHTED, curses.COLOR_WHITE, curses.COLOR_RED)
-            curses.init_pair(SELECTED, curses.COLOR_WHITE, curses.COLOR_YELLOW)
-            curses.init_pair(EDIT, curses.COLOR_WHITE, curses.COLOR_BLUE)
+            self.color_counter = 0
+            self.ATTR_HIGHLIGHT = self.init_color(bg=curses.COLOR_RED) | curses.A_BOLD
+            self.ATTR_SELECTED = self.init_color(bg=curses.COLOR_YELLOW) | curses.A_BOLD
+            self.ATTR_EDIT = self.init_color(bg=curses.COLOR_BLUE)
 
             self.items = []
             with open(self.file) as f:
@@ -95,7 +99,7 @@ ESC: cancel and quit
                         raise Exception("Unknown action: %r" % action)
                     self.items.append((action_code, content))
             if len(self.items) == 0:
-                self.cancel_and_quit()
+                self.cancel()
 
             self.first_displayed_item = 0
             self.highlighted_item = 0
@@ -110,16 +114,20 @@ ESC: cancel and quit
 
             self.stdscr.refresh()
 
+        def init_color(self, fg=curses.COLOR_WHITE, bg=curses.COLOR_BLACK):
+            self.color_counter += 1
+            curses.init_pair(self.color_counter, fg, bg)
+            return curses.color_pair(self.color_counter)
+
         def loop(self):
             while True:
                 ch = self.stdscr.getch()
-                if ch == curses.KEY_UP:
+                if ch == KEY_UP:
                     self.move_highlight(-1)
-                elif ch == curses.KEY_DOWN:
+                elif ch == KEY_DOWN:
                     self.move_highlight(+1)
                 elif ch == KEY_SPACE:
-                    self.selected = not self.selected
-                    self.draw_item(item=self.highlighted_item)
+                    self.toggle_selection()
                 elif ch == KEY_ENTER:
                     self.edit_highlight()
                 elif ch in [KEY_MINUS, KEY_DELETE]:
@@ -127,9 +135,9 @@ ESC: cancel and quit
                 elif ch in [KEY_PLUS, KEY_INSERT]:
                     self.insert_item()
                 elif ch == KEY_CTRL_X:
-                    self.save_and_quit()
+                    self.save_and_proceed()
                 elif ch == KEY_ESC:
-                    self.cancel_and_quit()
+                    self.cancel()
                 else:
                     char = chr(ch).lower()
                     if char in ACTIONS.keys():
@@ -159,10 +167,14 @@ ESC: cancel and quit
         def swap_items(self, i, j):
             self.items[i], self.items[j] = self.items[j], self.items[i]
 
+        def toggle_selection(self):
+            self.selected = not self.selected
+            self.draw_item(item=self.highlighted_item)
+
         def edit_highlight(self):
             item = self.highlighted_item
             linenum = item - self.first_displayed_item
-            content = self.items[item][1][:MAX_EDIT_SIZE]
+            content = self.items[item][1][:MAX_EDIT_SIZE-1]
 
             self.highlighted_item = None
             self.draw_item(item=item)
@@ -172,17 +184,17 @@ ESC: cancel and quit
             y = linenum + self.first_linenum
             win = curses.newwin(1, MAX_EDIT_SIZE, y, 10)
             win.addstr(0, 0, content)
-            win.bkgd(0, curses.color_pair(EDIT))
+            win.bkgd(0, self.ATTR_EDIT)
             win.move(0, 0)
 
             txt = curses.textpad.Textbox(win, insert_mode=True)
             def translate(key):
-                if key == curses.KEY_HOME:
-                    return curses.ascii.SOH
-                elif key == curses.KEY_END:
-                    return curses.ascii.ENQ
+                if key == KEY_HOME:
+                    return KEY_CTRL_A
+                elif key == KEY_END:
+                    return KEY_CTRL_E
                 elif key == KEY_DELETE:
-                    return curses.ascii.EOT
+                    return KEY_CTRL_D
                 elif key == KEY_ESC:
                     raise CancelEdit()
                 else:
@@ -220,17 +232,18 @@ ESC: cancel and quit
                 self.calculate_constraints()
                 self.draw_all_items()
 
-        def save_and_quit(self):
+        def save_and_proceed(self):
+            self.save_and_quit(self.items)
+
+        def cancel(self):
+            self.save_and_quit(items=[])
+
+        def save_and_quit(self, items):
             with open(self.file, 'w') as f:
-                for action_code, commit in self.items:
+                for action_code, commit in items:
                     action = ACTIONS[action_code]
                     line = '%s %s' % (action, commit)
                     print(line, file=f)
-            sys.exit(0)
-
-        def cancel_and_quit(self):
-            with open(self.file, 'w') as f:
-                print('', file=f)
             sys.exit(0)
 
         def set_action(self, action_code):
@@ -294,9 +307,9 @@ ESC: cancel and quit
             if item == self.highlighted_item:
                 if self.selected:
                     prefix, suffix = ' < ', ' > '
-                    attr = curses.A_BOLD | curses.color_pair(SELECTED)
+                    attr = self.ATTR_SELECTED
                 else:
-                    attr = curses.A_BOLD | curses.color_pair(HIGHLIGHTED)
+                    attr = self.ATTR_HIGHLIGHT
             else:
                 attr = 0
 
