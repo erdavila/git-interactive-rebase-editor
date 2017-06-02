@@ -26,8 +26,10 @@ def editor_main(file):
     KEY_CTRL_X = 24
     KEY_ESC = 27
     KEY_SPACE = 32
+    KEY_PLUS = 43
     KEY_MINUS = 45
-    KEY_DEL = 330
+    KEY_DELETE = 330
+    KEY_INSERT = 331
 
     HIGHLIGHTED = 1
     SELECTED = 2
@@ -58,8 +60,8 @@ Set action for highlighted item:
 SPACE: select/deselect highlighted item
 UP/DOWN: move highlighter. If an item is selected, also move it
 ENTER: edit highlighted item (then ENTER to confirm, ESC to cancel)
-- or DELETE: remove highlighted item
-CTRL-X: confirm and quit
++/-: insert an item/remove highlighted item
+CTRL-X: quit and proceed with rebase
 ESC: cancel and quit
     """.split("\n")
     INSTRUCTIONS = [line for line in INSTRUCTIONS if line.strip()]
@@ -120,8 +122,10 @@ ESC: cancel and quit
                     self.draw_item(item=self.highlighted_item)
                 elif ch == KEY_ENTER:
                     self.edit_highlight()
-                elif ch in [KEY_MINUS, KEY_DEL]:
+                elif ch in [KEY_MINUS, KEY_DELETE]:
                     self.remove_item()
+                elif ch in [KEY_PLUS, KEY_INSERT]:
+                    self.insert_item()
                 elif ch == KEY_CTRL_X:
                     self.save_and_quit()
                 elif ch == KEY_ESC:
@@ -177,7 +181,7 @@ ESC: cancel and quit
                     return curses.ascii.SOH
                 elif key == curses.KEY_END:
                     return curses.ascii.ENQ
-                elif key == KEY_DEL:
+                elif key == KEY_DELETE:
                     return curses.ascii.EOT
                 elif key == KEY_ESC:
                     raise CancelEdit()
@@ -188,13 +192,15 @@ ESC: cancel and quit
             try:
                 content = txt.edit(translate).strip()
             except CancelEdit:
-                pass
+                edited = False
             else:
                 action = self.items[item][0]
                 self.items[item] = (action, content)
+                edited = True
             curses.curs_set(0)
 
             self.draw_item(item=item)
+            return edited
 
         def remove_item(self):
             if not self.items:
@@ -204,6 +210,15 @@ ESC: cancel and quit
                 self.highlighted_item -= 1
             self.calculate_constraints()
             self.draw_all_items()
+
+        def insert_item(self):
+            self.items.insert(self.highlighted_item, ('p', ''))
+            self.calculate_constraints()
+            self.draw_all_items()
+            if not self.edit_highlight():
+                self.items.pop(self.highlighted_item)
+                self.calculate_constraints()
+                self.draw_all_items()
 
         def save_and_quit(self):
             with open(self.file, 'w') as f:
@@ -236,9 +251,14 @@ ESC: cancel and quit
                 self.first_linenum = 1
 
             last_item = len(self.items) - 1
-            spare_lines = self.last_displayed_item - last_item
-            if self.first_displayed_item > 0 and spare_lines > 0:
-                self.first_displayed_item -= min(self.first_displayed_item, spare_lines)
+
+            scroll_down = self.last_displayed_item - last_item
+            if scroll_down > 0:
+                self.first_displayed_item -= min(self.first_displayed_item, scroll_down)
+
+            scroll_up = self.highlighted_item - self.last_displayed_item
+            if scroll_up > 0:
+                self.first_displayed_item += scroll_up
 
         def draw_all_items(self):
             num_lines = min(len(self.items), self.available_item_lines)
