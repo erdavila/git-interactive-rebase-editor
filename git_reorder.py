@@ -17,16 +17,23 @@ def wrapper_main(my_path, options):
     sys.exit(status)
 
 def editor_main(file):
-    import curses
+    import curses.ascii
+    import curses.textpad
     import os
     os.environ.setdefault('ESCDELAY', '25')
 
     KEY_ENTER = 10
+    KEY_CTRL_X = 24
     KEY_ESC = 27
     KEY_SPACE = 32
+    KEY_DEL = 330
 
     HIGHLIGHTED = 1
     SELECTED = 2
+    EDIT = 3
+
+    MAX_EDIT_SIZE = 60
+    class CancelEdit(Exception): pass
 
     ACTIONS = {
         'p': 'pick',
@@ -38,16 +45,17 @@ def editor_main(file):
     }
 
     INSTRUCTIONS = """
-Set action on highlighted commit:
+Set action for highlighted item:
   P - pick (use commit)
   R - reword (use commit, but edit the commit message)
   E - edit (use commit, but stop for amending)
   S - squash (use commit, but meld into previous commit)
   F - fixup (like "squash", but discard this commit's log message)
   D - drop (remove commit)
-SPACE - select/deselect commit item highlighted
-UP/DOWN - move highlighter. If a commit is selected, also move it
-ENTER - confirm and quit
+SPACE - select/deselect highlighted item
+UP/DOWN - move highlighter. If an item is selected, also move it
+ENTER - edit highlighted item (then ENTER to confirm, ESC to cancel)
+CTRL-X - confirm and quit
 ESC - cancel and quit
     """.split("\n")
     INSTRUCTIONS = [line for line in INSTRUCTIONS if line.strip()]
@@ -65,6 +73,7 @@ ESC - cancel and quit
             curses.curs_set(0)
             curses.init_pair(HIGHLIGHTED, curses.COLOR_WHITE, curses.COLOR_RED)
             curses.init_pair(SELECTED, curses.COLOR_WHITE, curses.COLOR_YELLOW)
+            curses.init_pair(EDIT, curses.COLOR_WHITE, curses.COLOR_BLUE)
 
             self.items = []
             with open(self.file) as f:
@@ -107,6 +116,8 @@ ESC - cancel and quit
                     self.selected = not self.selected
                     self.draw_item(item=self.highlighted_item)
                 elif ch == KEY_ENTER:
+                    self.edit_highlight()
+                elif ch == KEY_CTRL_X:
                     self.save_and_quit()
                 elif ch == KEY_ESC:
                     self.cancel_and_quit()
@@ -139,6 +150,47 @@ ESC - cancel and quit
         def swap_items(self, i, j):
             self.items[i], self.items[j] = self.items[j], self.items[i]
 
+        def edit_highlight(self):
+            item = self.highlighted_item
+            linenum = item - self.first_displayed_item
+            content = self.items[item][1][:MAX_EDIT_SIZE]
+
+            self.highlighted_item = None
+            self.draw_item(item=item)
+            self.highlighted_item = item
+            self.stdscr.refresh()
+
+            y = linenum + self.first_linenum
+            win = curses.newwin(1, MAX_EDIT_SIZE, y, 10)
+            win.addstr(0, 0, content)
+            win.bkgd(0, curses.color_pair(EDIT))
+            win.move(0, 0)
+
+            txt = curses.textpad.Textbox(win, insert_mode=True)
+            def translate(key):
+                if key == curses.KEY_HOME:
+                    return curses.ascii.SOH
+                elif key == curses.KEY_END:
+                    return curses.ascii.ENQ
+                elif key == KEY_DEL:
+                    return curses.ascii.EOT
+                elif key == KEY_ESC:
+                    raise CancelEdit()
+                else:
+                    return key
+
+            curses.curs_set(2)
+            try:
+                content = txt.edit(translate).strip()
+            except CancelEdit:
+                pass
+            else:
+                action = self.items[item][0]
+                self.items[item] = (action, content)
+            curses.curs_set(0)
+
+            self.draw_item(item=item)
+
         def save_and_quit(self):
             with open(self.file, 'w') as f:
                 for action_code, commit in self.items:
@@ -153,7 +205,7 @@ ESC - cancel and quit
             sys.exit(0)
 
         def set_action(self, action_code):
-            _, commit = self.items[self.highlighted_item]
+            commit = self.items[self.highlighted_item][1]
             self.items[self.highlighted_item] = (action_code, commit)
             self.draw_item(item=self.highlighted_item)
 
