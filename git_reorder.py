@@ -41,6 +41,7 @@ def editor_main(file):
         'e': 'edit',
         's': 'squash',
         'f': 'fixup',
+        'x': 'exec',
         'd': 'drop',
     }
 
@@ -51,6 +52,7 @@ Set action for highlighted item:
   E - edit (use commit, but stop for amending)
   S - squash (use commit, but meld into previous commit)
   F - fixup (like "squash", but discard this commit's log message)
+  X - exec (run command (the rest of the line) using shell)
   D - drop (remove commit)
 SPACE - select/deselect highlighted item
 UP/DOWN - move highlighter. If an item is selected, also move it
@@ -79,10 +81,15 @@ ESC - cancel and quit
             with open(self.file) as f:
                 for line in f:
                     line = line.strip()
-                    if line != '' and line[0] != '#' and line != 'noop':
-                        assert line.startswith('pick ')
-                        commit = line[5:].strip()
-                        self.items.append(('p', commit))
+                    if line == '' or line[0] == '#':
+                        continue
+                    action, content = line.split(' ', maxsplit=1)
+                    for action_code, act in ACTIONS.items():
+                        if action == act:
+                            break
+                    else:
+                        raise Exception("Unknown action: %r" % action)
+                    self.items.append((action_code, content))
             if len(self.items) == 0:
                 self.cancel_and_quit()
 
@@ -267,7 +274,7 @@ else:
     INCOMPATIBLE_OPTIONS = {
         '--continue', '--abort', '--quit', '--skip', '--edit-todo',
         '--ignore-whitespace', '--whitespace', '--committer-date-is-author-date',
-        '--ignore-date', '--signoff', '-i', '--interactive', '-x', '--exec'
+        '--ignore-date', '--signoff', '-i', '--interactive',
     }
     for opt in options:
         if opt in INCOMPATIBLE_OPTIONS:
