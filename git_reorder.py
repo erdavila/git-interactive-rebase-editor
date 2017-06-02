@@ -26,6 +26,7 @@ def editor_main(file):
     KEY_CTRL_X = 24
     KEY_ESC = 27
     KEY_SPACE = 32
+    KEY_MINUS = 45
     KEY_DEL = 330
 
     HIGHLIGHTED = 1
@@ -47,18 +48,19 @@ def editor_main(file):
 
     INSTRUCTIONS = """
 Set action for highlighted item:
-  P - pick (use commit)
-  R - reword (use commit, but edit the commit message)
-  E - edit (use commit, but stop for amending)
-  S - squash (use commit, but meld into previous commit)
-  F - fixup (like "squash", but discard this commit's log message)
-  X - exec (run command (the rest of the line) using shell)
-  D - drop (remove commit)
-SPACE - select/deselect highlighted item
-UP/DOWN - move highlighter. If an item is selected, also move it
-ENTER - edit highlighted item (then ENTER to confirm, ESC to cancel)
-CTRL-X - confirm and quit
-ESC - cancel and quit
+  P: pick (use commit)
+  R: reword (use commit, but edit the commit message)
+  E: edit (use commit, but stop for amending)
+  S: squash (use commit, but meld into previous commit)
+  F: fixup (like "squash", but discard this commit's log message)
+  X: exec (run command (the rest of the line) using shell)
+  D: drop (remove commit)
+SPACE: select/deselect highlighted item
+UP/DOWN: move highlighter. If an item is selected, also move it
+ENTER: edit highlighted item (then ENTER to confirm, ESC to cancel)
+- or DELETE: remove highlighted item
+CTRL-X: confirm and quit
+ESC: cancel and quit
     """.split("\n")
     INSTRUCTIONS = [line for line in INSTRUCTIONS if line.strip()]
 
@@ -97,17 +99,11 @@ ESC - cancel and quit
             self.highlighted_item = 0
             self.selected = False
 
-            available_lines = curses.LINES - len(INSTRUCTIONS) - 1
-            self.available_lines = available_lines
-            self.first_linenum = 0
-            self.scrollable = len(self.items) > self.available_lines
-            if self.scrollable:
-                self.available_lines -= 2
-                self.first_linenum = 1
-
+            self.available_lines = curses.LINES - len(INSTRUCTIONS) - 1
+            self.calculate_constraints()
             self.draw_all_items()
 
-            for index, line in enumerate(INSTRUCTIONS, available_lines + 1):
+            for index, line in enumerate(INSTRUCTIONS, self.available_lines + 1):
                 self.draw_line(index, line)
 
             self.stdscr.refresh()
@@ -124,6 +120,8 @@ ESC - cancel and quit
                     self.draw_item(item=self.highlighted_item)
                 elif ch == KEY_ENTER:
                     self.edit_highlight()
+                elif ch in [KEY_MINUS, KEY_DEL]:
+                    self.remove_item()
                 elif ch == KEY_CTRL_X:
                     self.save_and_quit()
                 elif ch == KEY_ESC:
@@ -198,6 +196,15 @@ ESC - cancel and quit
 
             self.draw_item(item=item)
 
+        def remove_item(self):
+            if not self.items:
+                return
+            self.items.pop(self.highlighted_item)
+            if self.highlighted_item >= len(self.items):
+                self.highlighted_item -= 1
+            self.calculate_constraints()
+            self.draw_all_items()
+
         def save_and_quit(self):
             with open(self.file, 'w') as f:
                 for action_code, commit in self.items:
@@ -218,10 +225,23 @@ ESC - cancel and quit
 
         @property
         def last_displayed_item(self):
-            return self.first_displayed_item + self.available_lines - 1
+            return self.first_displayed_item + self.available_item_lines - 1
+
+        def calculate_constraints(self):
+            self.available_item_lines = self.available_lines
+            self.first_linenum = 0
+            self.scrollable = len(self.items) > self.available_item_lines
+            if self.scrollable:
+                self.available_item_lines -= 2
+                self.first_linenum = 1
+
+            last_item = len(self.items) - 1
+            spare_lines = self.last_displayed_item - last_item
+            if self.first_displayed_item > 0 and spare_lines > 0:
+                self.first_displayed_item -= min(self.first_displayed_item, spare_lines)
 
         def draw_all_items(self):
-            num_lines = min(len(self.items), self.available_lines)
+            num_lines = min(len(self.items), self.available_item_lines)
             for linenum in range(num_lines):
                 self.draw_item(linenum=linenum)
 
@@ -232,8 +252,11 @@ ESC - cancel and quit
                 y = 0
                 self.draw_line(y, "↑ %d" % items_before)
 
-                y = self.available_lines + 1
+                y = self.available_item_lines + 1
                 self.draw_line(y, "↓ %d" % items_after)
+            else:
+                for linenum in range(num_lines, self.available_lines):
+                    self.draw_line(linenum, "")
 
         def draw_item(self, linenum=None, item=None):
             assert (linenum is None) != (item is None)
