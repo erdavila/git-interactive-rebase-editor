@@ -1,22 +1,12 @@
 #!/bin/bash
 set -e
 
-NAME=reorder
 GLOBAL=''
 
 until [ -z "$1" ] ; do
   case "$1" in
     --global)
       GLOBAL=--global
-      ;;
-
-    --name)
-      shift
-      if [ -z $1 ]; then
-        echo "What name?!" >&2
-        exit 1
-      fi
-      NAME=$1
       ;;
 
     *)
@@ -27,7 +17,7 @@ until [ -z "$1" ] ; do
 done
 
 APP=$(readlink -f $(dirname $0)/git_reorder.py)
-git config $GLOBAL alias.$NAME "-c sequence.editor='$APP' rebase -i"
+git config $GLOBAL sequence.editor "$APP"
 
-echo "Created alias '$NAME' for Git."
+echo "Configured interactive git rebase editor."
 echo "See README.md for usage instructions."
