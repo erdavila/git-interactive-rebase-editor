@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-NAME=reorder
+NAME=visual-rebase
 GLOBAL=''
 
 until [ -z "$1" ] ; do
@@ -26,7 +26,7 @@ until [ -z "$1" ] ; do
   shift
 done
 
-APP=$(readlink -f $(dirname $0)/git_reorder.py)
+APP=$(readlink -f $(dirname $0)/git_visual_rebase.py)
 git config $GLOBAL alias.$NAME "-c sequence.editor='$APP' rebase -i"
 
 echo "Created alias '$NAME' for Git."

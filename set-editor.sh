@@ -16,7 +16,7 @@ until [ -z "$1" ] ; do
   shift
 done
 
-APP=$(readlink -f $(dirname $0)/git_reorder.py)
+APP=$(readlink -f $(dirname $0)/git_visual_rebase.py)
 git config $GLOBAL sequence.editor "$APP"
 
 echo "Configured interactive git rebase editor."

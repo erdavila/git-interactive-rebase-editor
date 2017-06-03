@@ -56,7 +56,7 @@ ESC: cancel and quit
 """.split("\n")
 INSTRUCTIONS = [line for line in INSTRUCTIONS if line.strip()]
 
-class Reorder:
+class VisualRebase:
     def __init__(self, stdscr, file):
         self.stdscr = stdscr
         self.file = file
@@ -334,4 +334,4 @@ class Reorder:
         self.stdscr.addstr(y, 0, line, *attrs)
         self.stdscr.clrtoeol()
 
-curses.wrapper(Reorder, file=sys.argv[1])
+curses.wrapper(VisualRebase, file=sys.argv[1])

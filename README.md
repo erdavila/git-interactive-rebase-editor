@@ -1,5 +1,5 @@
-# git-reorder
-A visual helper for interactive rebase.
+# git-visual-rebase
+A visual helper for Git rebase interactive mode.
 
 ![Screenshot](Screenshot.png)
 
@@ -7,7 +7,7 @@ Requires Python 3.
 
 ## Using as an interactive _git rebase_ alternative
 
-If you want to test _git reorder_ or want to still have the option of running
+If you want to test _git visual-rebase_ or want to still have the option of running
 interactive _git rebase_ in the traditional way, execute:
 
 ```sh
@@ -15,13 +15,13 @@ interactive _git rebase_ in the traditional way, execute:
 ```
 
 This will create an alias to execute interactive _git rebase_ using this application
-as the editor. The default name for the alias is `reorder`.
+as the editor. The default name for the alias is `visual-rebase`.
 
-Then, to use it, execute the command below. Replace "`reorder`" with the name
+Then, to use it, execute the command below. Replace "`visual-rebase`" with the name
 you used for the `--alias` option above, if that is the case:
 
 ```sh
-git reorder <options>
+git visual-rebase <options>
 ```
 
 Most of _git rebase_ options are available - the exceptions are options used after
