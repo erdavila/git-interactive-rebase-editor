@@ -31,6 +31,7 @@ def editor_main(file):
     KEY_SPACE = curses.ascii.SP      #  32
     KEY_PLUS = 43
     KEY_MINUS = 45
+    KEY_2 = 50
     KEY_DOWN = curses.KEY_DOWN       # 258
     KEY_UP = curses.KEY_UP           # 259
     KEY_HOME = curses.KEY_HOME       # 262
@@ -144,6 +145,8 @@ ESC: cancel and quit
                     self.remove_item()
                 elif ch in [KEY_PLUS, KEY_INSERT]:
                     self.insert_item()
+                elif ch == KEY_2:
+                    self.duplicate_item()
                 elif ch == KEY_CTRL_X:
                     self.save_and_proceed()
                 elif ch == KEY_ESC:
@@ -241,6 +244,12 @@ ESC: cancel and quit
                 self.items.pop(self.highlighted_item)
                 self.calculate_constraints()
                 self.draw_all_items()
+
+        def duplicate_item(self):
+            self.items.insert(self.highlighted_item, self.items[self.highlighted_item])
+            self.highlighted_item += 1
+            self.calculate_constraints()
+            self.draw_all_items()
 
         def save_and_proceed(self):
             self.save_and_quit(self.items)
