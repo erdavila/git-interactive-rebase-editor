@@ -22,21 +22,23 @@ def editor_main(file):
     import os
     os.environ.setdefault('ESCDELAY', '25')
 
-    KEY_CTRL_A = curses.ascii.SOH  #   1
-    KEY_CTRL_D = curses.ascii.EOT  #   4
-    KEY_CTRL_E = curses.ascii.ENQ  #   5
-    KEY_ENTER = curses.ascii.NL    #  10
-    KEY_CTRL_X = curses.ascii.CAN  #  24
-    KEY_ESC = curses.ascii.ESC     #  27
-    KEY_SPACE = curses.ascii.SP    #  32
+    KEY_CTRL_A = curses.ascii.SOH    #   1
+    KEY_CTRL_D = curses.ascii.EOT    #   4
+    KEY_CTRL_E = curses.ascii.ENQ    #   5
+    KEY_ENTER = curses.ascii.NL      #  10
+    KEY_CTRL_X = curses.ascii.CAN    #  24
+    KEY_ESC = curses.ascii.ESC       #  27
+    KEY_SPACE = curses.ascii.SP      #  32
     KEY_PLUS = 43
     KEY_MINUS = 45
-    KEY_DOWN = curses.KEY_DOWN     # 258
-    KEY_UP = curses.KEY_UP         # 259
-    KEY_HOME = curses.KEY_HOME     # 262
-    KEY_DELETE = curses.KEY_DC     # 330
-    KEY_INSERT = curses.KEY_IC     # 331
-    KEY_END = curses.KEY_END       # 360
+    KEY_DOWN = curses.KEY_DOWN       # 258
+    KEY_UP = curses.KEY_UP           # 259
+    KEY_HOME = curses.KEY_HOME       # 262
+    KEY_DELETE = curses.KEY_DC       # 330
+    KEY_INSERT = curses.KEY_IC       # 331
+    KEY_PAGEDOWN = curses.KEY_NPAGE  # 338
+    KEY_PAGEUP = curses.KEY_PPAGE    # 339
+    KEY_END = curses.KEY_END         # 360
 
     MAX_EDIT_SIZE = 60
     class CancelEdit(Exception): pass
@@ -123,9 +125,17 @@ ESC: cancel and quit
             while True:
                 ch = self.stdscr.getch()
                 if ch == KEY_UP:
-                    self.move_highlight(-1)
+                    self.move_highlight(new_highlighted_item=self.highlighted_item - 1)
                 elif ch == KEY_DOWN:
-                    self.move_highlight(+1)
+                    self.move_highlight(new_highlighted_item=self.highlighted_item + 1)
+                elif ch == KEY_HOME:
+                    self.move_highlight(new_highlighted_item=0)
+                elif ch == KEY_END:
+                    self.move_highlight(new_highlighted_item=self.last_item)
+                elif ch == KEY_PAGEUP:
+                    self.page_move_highlight(-1)
+                elif ch == KEY_PAGEDOWN:
+                    self.page_move_highlight(+1)
                 elif ch == KEY_SPACE:
                     self.toggle_selection()
                 elif ch == KEY_ENTER:
@@ -144,25 +154,25 @@ ESC: cancel and quit
                         self.set_action(char)
                 self.stdscr.refresh()
 
-        def move_highlight(self, delta):
-            new_highlighted_item = self.highlighted_item + delta
-            if new_highlighted_item >= 0 and new_highlighted_item < len(self.items):
+        def page_move_highlight(self, signal):
+            delta = self.available_item_lines - 1
+            signed_delta = signal * delta
+            self.first_displayed_item += signed_delta
+            new_highlighted_item = self.highlighted_item + signed_delta
+            self.move_highlight(new_highlighted_item)
+
+        def move_highlight(self, new_highlighted_item):
+            new_highlighted_item = max(new_highlighted_item, 0)
+            new_highlighted_item = min(new_highlighted_item, self.last_item)
+
+            if new_highlighted_item != self.highlighted_item:
                 old_highlighted_item = self.highlighted_item
                 self.highlighted_item = new_highlighted_item
                 if self.selected:
                     self.swap_items(old_highlighted_item, new_highlighted_item)
 
-                if self.highlighted_item < self.first_displayed_item:
-                    assert self.scrollable
-                    self.first_displayed_item -= 1
-                    self.draw_all_items()
-                elif self.highlighted_item > self.last_displayed_item:
-                    assert self.scrollable
-                    self.first_displayed_item += 1
-                    self.draw_all_items()
-                else:
-                    self.draw_item(item=old_highlighted_item)
-                    self.draw_item(item=new_highlighted_item)
+                self.adjust_scrolling()
+                self.draw_all_items()
 
         def swap_items(self, i, j):
             self.items[i], self.items[j] = self.items[j], self.items[i]
@@ -252,8 +262,16 @@ ESC: cancel and quit
             self.draw_item(item=self.highlighted_item)
 
         @property
+        def last_item(self):
+            return len(self.items) - 1
+
+        @property
         def last_displayed_item(self):
             return self.first_displayed_item + self.available_item_lines - 1
+
+        @last_displayed_item.setter
+        def last_displayed_item(self, value):
+            self.first_displayed_item = value - self.available_item_lines + 1
 
         def calculate_constraints(self):
             self.available_item_lines = self.available_lines
@@ -263,15 +281,20 @@ ESC: cancel and quit
                 self.available_item_lines -= 2
                 self.first_linenum = 1
 
-            last_item = len(self.items) - 1
+            self.adjust_scrolling()
 
-            scroll_down = self.last_displayed_item - last_item
+        def adjust_scrolling(self):
+            scroll_down = self.last_displayed_item - self.last_item
             if scroll_down > 0:
                 self.first_displayed_item -= min(self.first_displayed_item, scroll_down)
 
-            scroll_up = self.highlighted_item - self.last_displayed_item
-            if scroll_up > 0:
-                self.first_displayed_item += scroll_up
+            if self.highlighted_item > self.last_displayed_item:
+                self.last_displayed_item = self.highlighted_item
+
+            if self.first_displayed_item > self.highlighted_item:
+                self.first_displayed_item = self.highlighted_item
+            elif self.first_displayed_item < 0:
+                self.first_displayed_item = 0
 
         def draw_all_items(self):
             num_lines = min(len(self.items), self.available_item_lines)
