@@ -5,7 +5,7 @@ mod ui;
 use std::io;
 
 use anyhow::Result;
-use app::App;
+use app::{App, Mode};
 use crossterm::event::{self, Event, KeyCode, KeyModifiers};
 use ratatui::{
     backend::{Backend, CrosstermBackend},
@@ -46,19 +46,31 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> Result<()> 
                 key.code = KeyCode::Char(char);
             }
 
-            match key.code {
-                KeyCode::Esc | KeyCode::Char('q') => {
-                    return Ok(());
+            match &app.mode {
+                Mode::Main => match key.code {
+                    KeyCode::Esc | KeyCode::Char('q') => {
+                        return Ok(());
+                    }
+                    KeyCode::Up if key.modifiers == KeyModifiers::CONTROL => app.move_up(),
+                    KeyCode::Down if key.modifiers == KeyModifiers::CONTROL => app.move_down(),
+                    KeyCode::Up => app.select_up(1),
+                    KeyCode::Down => app.select_down(1),
+                    KeyCode::Home => app.select(0),
+                    KeyCode::End => app.select(app.last_line_index()),
+                    KeyCode::PageUp => app.select_up(app.page_length - 1),
+                    KeyCode::PageDown => app.select_down(app.page_length - 1),
+                    KeyCode::Enter => app.edit_command(),
+                    _ => {}
+                },
+                Mode::EditingCommand { .. } => {
+                    match key.code {
+                        KeyCode::Esc => {
+                            // TODO: temporary implementation
+                            app.mode = Mode::Main;
+                        }
+                        _ => {}
+                    }
                 }
-                KeyCode::Up if key.modifiers == KeyModifiers::CONTROL => app.move_up(),
-                KeyCode::Down if key.modifiers == KeyModifiers::CONTROL => app.move_down(),
-                KeyCode::Up => app.select_up(1),
-                KeyCode::Down => app.select_down(1),
-                KeyCode::Home => app.select(0),
-                KeyCode::End => app.select(app.last_line_index()),
-                KeyCode::PageUp => app.select_up(app.page_length - 1),
-                KeyCode::PageDown => app.select_down(app.page_length - 1),
-                _ => {}
             }
         }
     }

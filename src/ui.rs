@@ -1,14 +1,14 @@
 use ratatui::{
-    layout::{Constraint, Layout, Margin},
+    layout::{Constraint, Layout, Margin, Rect},
     style::{Style, Stylize},
     widgets::{
-        Block, Borders, List, ListItem, Padding, Paragraph, Scrollbar, ScrollbarOrientation,
+        Block, Borders, Clear, List, ListItem, Padding, Paragraph, Scrollbar, ScrollbarOrientation,
         ScrollbarState,
     },
     Frame,
 };
 
-use crate::app::{App, Line};
+use crate::app::{App, Line, Mode, COMMANDS};
 
 impl<'a> From<&Line> for ListItem<'a> {
     fn from(line: &Line) -> Self {
@@ -19,7 +19,10 @@ impl<'a> From<&Line> for ListItem<'a> {
 pub fn ui(frame: &mut Frame, app: &mut App) {
     let [lines_area, footer_area] = {
         let chunks = Layout::default()
-            .constraints([Constraint::Min(10), Constraint::Length(1)])
+            .constraints([
+                Constraint::Min(COMMANDS.len() as u16),
+                Constraint::Length(1),
+            ])
             .split(frame.size());
         [chunks[0], chunks[1]]
     };
@@ -48,7 +51,35 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
     .position(app.lines_widget_state.offset());
     frame.render_stateful_widget(scrollbar, scrollbar_area, &mut scrollbar_state);
 
-    let footer =
-        Paragraph::new("CTRL+↑/CTRL+↓: move | ESC/Q: quit").style(Style::default().reversed());
+    let footer_text = match &mut app.mode {
+        Mode::Main => "CTRL+↑/CTRL+↓: move | ENTER: edit | ESC/Q: quit",
+        Mode::EditingCommand { list_state } => {
+            let mut commands_area = Rect {
+                x: lines_area.x + 3,
+                y: (app.lines_widget_state.selected().unwrap() - app.lines_widget_state.offset())
+                    as u16,
+                width: COMMANDS.iter().map(|cmd| cmd.len()).max().unwrap_or(0) as u16 + 4,
+                height: COMMANDS.len() as u16 + 2,
+            };
+            if commands_area.bottom() > lines_area.bottom() {
+                commands_area.y -= commands_area.bottom() - lines_area.bottom();
+            }
+
+            let commands = List::new(COMMANDS)
+                .highlight_style(Style::default().reversed())
+                .block(
+                    Block::default()
+                        .padding(Padding::horizontal(1))
+                        .borders(Borders::ALL),
+                );
+
+            frame.render_widget(Clear, commands_area);
+            frame.render_stateful_widget(commands, commands_area, list_state);
+
+            "ESC: cancel editing"
+        }
+    };
+
+    let footer = Paragraph::new(footer_text).style(Style::default().reversed());
     frame.render_widget(footer, footer_area);
 }

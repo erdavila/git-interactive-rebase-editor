@@ -1,14 +1,35 @@
 use ratatui::widgets::ListState;
 
+pub const COMMANDS: [&str; 12] = [
+    "pick",
+    "reword",
+    "edit",
+    "squash",
+    "fixup",
+    "exec",
+    "break",
+    "drop",
+    "label",
+    "reset",
+    "merge",
+    "update-ref",
+];
+
 pub struct Line {
     pub command: String,
     pub parameters: String,
+}
+
+pub enum Mode {
+    Main,
+    EditingCommand { list_state: ListState },
 }
 
 pub struct App {
     pub lines: Vec<Line>,
     pub lines_widget_state: ListState,
     pub page_length: usize,
+    pub mode: Mode,
 }
 
 impl App {
@@ -31,6 +52,7 @@ impl App {
                 .collect(),
             lines_widget_state: ListState::default().with_selected(Some(0)),
             page_length: 0,
+            mode: Mode::Main,
         }
     }
 
@@ -58,7 +80,7 @@ impl App {
     }
 
     pub fn move_up(&mut self) {
-        let selected = self.lines_widget_state.selected().unwrap();
+        let selected = self.selected();
         if selected > 0 {
             self.lines.swap(selected, selected - 1);
             self.select_up(1);
@@ -66,10 +88,24 @@ impl App {
     }
 
     pub fn move_down(&mut self) {
-        let selected = self.lines_widget_state.selected().unwrap();
+        let selected = self.selected();
         if selected < self.lines.len() - 1 {
             self.lines.swap(selected, selected + 1);
             self.select_down(1);
         }
+    }
+
+    pub fn edit_command(&mut self) {
+        let selected = self.selected();
+        let command = &self.lines[selected].command;
+        let index = COMMANDS.iter().position(|cmd| cmd == command).unwrap_or(0);
+
+        self.mode = Mode::EditingCommand {
+            list_state: ListState::default().with_selected(Some(index)),
+        };
+    }
+
+    fn selected(&self) -> usize {
+        self.lines_widget_state.selected().unwrap()
     }
 }
