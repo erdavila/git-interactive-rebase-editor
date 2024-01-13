@@ -36,13 +36,18 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> Result<()> 
             ui(f, app);
         })?;
 
-        if let Event::Key(key) = event::read()? {
+        if let Event::Key(mut key) = event::read()? {
             if key.kind != event::KeyEventKind::Press {
                 continue;
             }
 
+            if let KeyCode::Char(mut char) = key.code {
+                char.make_ascii_lowercase();
+                key.code = KeyCode::Char(char);
+            }
+
             match key.code {
-                KeyCode::Esc => {
+                KeyCode::Esc | KeyCode::Char('q') => {
                     return Ok(());
                 }
                 KeyCode::Up => app.select_up(1),

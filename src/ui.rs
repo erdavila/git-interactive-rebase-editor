@@ -1,13 +1,14 @@
 use ratatui::{
-    layout::Margin,
-    style::{Color, Style, Stylize},
-    widgets::{Block, Borders, List, ListItem, Scrollbar, ScrollbarOrientation, ScrollbarState},
+    layout::{Constraint, Layout, Margin},
+    style::{Style, Stylize},
+    widgets::{
+        Block, Borders, List, ListItem, Padding, Paragraph, Scrollbar, ScrollbarOrientation,
+        ScrollbarState,
+    },
     Frame,
 };
 
 use crate::app::{App, Line};
-
-const WITH_BORDER: bool = true;
 
 impl<'a> From<&Line> for ListItem<'a> {
     fn from(line: &Line) -> Self {
@@ -16,26 +17,28 @@ impl<'a> From<&Line> for ListItem<'a> {
 }
 
 pub fn ui(frame: &mut Frame, app: &mut App) {
-    let mut lines = List::new(&app.lines)
-        .style(Style::default().fg(Color::Black).bg(Color::LightYellow))
-        .highlight_symbol(">")
-        .highlight_style(Style::default().on_green());
-    if WITH_BORDER {
-        lines = lines.block(
+    let [lines_area, footer_area] = {
+        let chunks = Layout::default()
+            .constraints([Constraint::Min(10), Constraint::Length(1)])
+            .split(frame.size());
+        [chunks[0], chunks[1]]
+    };
+
+    let lines = List::new(&app.lines)
+        .highlight_style(Style::default().reversed())
+        .block(
             Block::default()
-                .title("Lines")
+                .title(" Git Interactive Rebase ")
                 .borders(Borders::ALL)
-                .green(),
+                .padding(Padding::horizontal(1)),
         );
-    }
-    let lines_area = frame.size();
-    app.page_length = lines_area.height as usize - if WITH_BORDER { 2 } else { 0 };
+    app.page_length = lines_area.height as usize - 2;
     frame.render_stateful_widget(lines, lines_area, &mut app.lines_widget_state);
 
     let scrollbar = Scrollbar::new(ScrollbarOrientation::VerticalRight);
     let scrollbar_area = lines_area.inner(&Margin {
         horizontal: 0,
-        vertical: if WITH_BORDER { 1 } else { 0 },
+        vertical: 1,
     });
     let mut scrollbar_state = ScrollbarState::new(
         app.lines
@@ -44,4 +47,7 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
     )
     .position(app.lines_widget_state.offset());
     frame.render_stateful_widget(scrollbar, scrollbar_area, &mut scrollbar_state);
+
+    let footer = Paragraph::new("ESC/Q: quit").style(Style::default().reversed());
+    frame.render_widget(footer, footer_area);
 }
