@@ -65,6 +65,7 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> Result<()> 
                             // TODO: temporary implementation
                             app.mode = Mode::Main;
                         }
+                        KeyCode::Enter => app.confirm_command(),
                         _ => commands.input(key),
                     }
                 }

@@ -88,4 +88,15 @@ impl<'a> App<'a> {
             commands: SelectableList::new(COMMANDS.as_slice()).with_selected(index),
         };
     }
+
+    pub fn confirm_command(&mut self) {
+        if let Mode::Editing { commands } = &mut self.mode {
+            let selected_command = commands.selected();
+            let selected_line = self.lines.selected();
+
+            self.lines.items_mut()[selected_line].command =
+                COMMANDS[selected_command].0.to_string();
+            self.mode = Mode::Main;
+        }
+    }
 }
