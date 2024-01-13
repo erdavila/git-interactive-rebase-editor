@@ -6,7 +6,7 @@ use std::io;
 
 use anyhow::Result;
 use app::App;
-use crossterm::event::{self, Event, KeyCode};
+use crossterm::event::{self, Event, KeyCode, KeyModifiers};
 use ratatui::{
     backend::{Backend, CrosstermBackend},
     Terminal,
@@ -50,6 +50,8 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> Result<()> 
                 KeyCode::Esc | KeyCode::Char('q') => {
                     return Ok(());
                 }
+                KeyCode::Up if key.modifiers == KeyModifiers::CONTROL => app.move_up(),
+                KeyCode::Down if key.modifiers == KeyModifiers::CONTROL => app.move_down(),
                 KeyCode::Up => app.select_up(1),
                 KeyCode::Down => app.select_down(1),
                 KeyCode::Home => app.select(0),

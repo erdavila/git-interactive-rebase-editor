@@ -48,6 +48,7 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
     .position(app.lines_widget_state.offset());
     frame.render_stateful_widget(scrollbar, scrollbar_area, &mut scrollbar_state);
 
-    let footer = Paragraph::new("ESC/Q: quit").style(Style::default().reversed());
+    let footer =
+        Paragraph::new("CTRL+↑/CTRL+↓: move | ESC/Q: quit").style(Style::default().reversed());
     frame.render_widget(footer, footer_area);
 }

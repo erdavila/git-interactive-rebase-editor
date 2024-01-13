@@ -56,4 +56,20 @@ impl App {
     pub fn last_line_index(&self) -> usize {
         self.lines.len() - 1
     }
+
+    pub fn move_up(&mut self) {
+        let selected = self.lines_widget_state.selected().unwrap();
+        if selected > 0 {
+            self.lines.swap(selected, selected - 1);
+            self.select_up(1);
+        }
+    }
+
+    pub fn move_down(&mut self) {
+        let selected = self.lines_widget_state.selected().unwrap();
+        if selected < self.lines.len() - 1 {
+            self.lines.swap(selected, selected + 1);
+            self.select_down(1);
+        }
+    }
 }
