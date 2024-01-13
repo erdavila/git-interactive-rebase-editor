@@ -68,6 +68,8 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> Result<()> 
                             // TODO: temporary implementation
                             app.mode = Mode::Main;
                         }
+                        KeyCode::Up => app.select_command_up(),
+                        KeyCode::Down => app.select_command_down(),
                         _ => {}
                     }
                 }

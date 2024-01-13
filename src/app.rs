@@ -108,4 +108,20 @@ impl App {
     fn selected(&self) -> usize {
         self.lines_widget_state.selected().unwrap()
     }
+
+    pub fn select_command_up(&mut self) {
+        self.modify_selected_command(|selected| selected.saturating_sub(1));
+    }
+
+    pub fn select_command_down(&mut self) {
+        self.modify_selected_command(|selected| (selected + 1).min(COMMANDS.len() - 1));
+    }
+
+    fn modify_selected_command(&mut self, f: impl FnOnce(usize) -> usize) {
+        if let Mode::EditingCommand { list_state } = &mut self.mode {
+            let selected = list_state.selected().unwrap();
+            let selected = f(selected);
+            list_state.select(Some(selected));
+        }
+    }
 }
