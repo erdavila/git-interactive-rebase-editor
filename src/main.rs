@@ -48,7 +48,7 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> Result<()> 
                 KeyCode::Up => app.select_up(1),
                 KeyCode::Down => app.select_down(1),
                 KeyCode::Home => app.select(0),
-                KeyCode::End => app.select(app.last_item_index()),
+                KeyCode::End => app.select(app.last_line_index()),
                 KeyCode::PageUp => app.select_up(app.page_length - 1),
                 KeyCode::PageDown => app.select_down(app.page_length - 1),
                 _ => {}
