@@ -8,7 +8,7 @@ use ratatui::{
     Frame,
 };
 
-use crate::app::{App, Command, Line, Mode, COMMANDS};
+use crate::app::{App, Command, EditingWhat, Line, Mode, COMMANDS};
 
 impl<'a> From<Line> for ListItem<'a> {
     fn from(line: Line) -> Self {
@@ -56,11 +56,14 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
 
     let footer_text = match &mut app.mode {
         Mode::Main => "CTRL+↑/CTRL+↓: move | ENTER: edit | ESC/Q: quit",
-        Mode::Editing { commands, .. } => {
+        Mode::Editing {
+            what: EditingWhat::Command(commands),
+            ..
+        } => {
             let mut cmds_area = Rect {
                 x: lines_area.x + 3,
                 y: (lines_state.selected().unwrap() - lines_state.offset()) as u16,
-                width: COMMANDS.iter().map(|cmd| cmd.0.len()).max().unwrap_or(0) as u16 + 4,
+                width: max_command_len() as u16 + 4,
                 height: COMMANDS.len() as u16 + 2,
             };
             if cmds_area.bottom() > lines_area.bottom() {
@@ -78,10 +81,32 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
             frame.render_widget(Clear, cmds_area);
             frame.render_stateful_widget(cmds, cmds_area, cmds_state);
 
-            "ESC: cancel editing"
+            "TAB: edit parameters | ENTER: confirm | ESC: cancel editing"
+        }
+        Mode::Editing {
+            what: EditingWhat::Parameters(parameters),
+            ..
+        } => {
+            let x = max_command_len() as u16 + 2;
+            let params_area = Rect {
+                x,
+                y: (lines_state.selected().unwrap() - lines_state.offset()) as u16,
+                width: lines_area.right() - x,
+                height: 3,
+            };
+            let params =
+                Paragraph::new(parameters.clone()).block(Block::default().borders(Borders::ALL));
+            frame.render_widget(Clear, params_area);
+            frame.render_widget(params, params_area);
+
+            "TAB: edit command | ENTER: confirm | ESC: cancel editing"
         }
     };
 
     let footer = Paragraph::new(footer_text).style(Style::default().reversed());
     frame.render_widget(footer, footer_area);
+}
+
+fn max_command_len() -> usize {
+    COMMANDS.iter().map(|cmd| cmd.0.len()).max().unwrap_or(0)
 }

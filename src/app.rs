@@ -23,10 +23,16 @@ pub struct Line {
     pub parameters: String,
 }
 
+pub enum EditingWhat<'a> {
+    Command(SelectableList<'a, &'a [Command]>),
+    Parameters(String),
+}
+
 pub enum Mode<'a> {
     Main,
     Editing {
-        commands: SelectableList<'a, &'a [Command]>,
+        what: EditingWhat<'a>,
+        original_line: Line,
     },
 }
 
@@ -77,26 +83,92 @@ impl<'a> App<'a> {
         }
     }
 
-    pub fn edit_command(&mut self) {
-        let command = &self.lines.selected_item().command;
-        let index = COMMANDS
+    pub fn enter_edition(&mut self) {
+        let original_line = self.lines.selected_item().clone();
+        let command = original_line.command.clone();
+        self.mode = Self::make_command_edition_mode(command, original_line);
+    }
+
+    pub fn switch_edition(&mut self) {
+        if let Mode::Editing {
+            what,
+            original_line,
+        } = &mut self.mode
+        {
+            match what {
+                EditingWhat::Command(command) => {
+                    Self::apply_edited_command(&mut self.lines, command);
+                    let parameters = self.lines.selected_item().parameters.clone();
+                    self.mode =
+                        Self::make_parameters_edition_mode(parameters, original_line.clone());
+                }
+                EditingWhat::Parameters(parameters) => {
+                    Self::apply_edited_parameters(&mut self.lines, parameters);
+                    let command = self.lines.selected_item().command.clone();
+                    self.mode = Self::make_command_edition_mode(command, original_line.clone());
+                }
+            }
+        } else {
+            unimplemented!()
+        }
+    }
+
+    pub fn confirm_edition(&mut self) {
+        if let Mode::Editing { what, .. } = &mut self.mode {
+            match what {
+                EditingWhat::Command(command) => {
+                    Self::apply_edited_command(&mut self.lines, command)
+                }
+                EditingWhat::Parameters(parameters) => {
+                    Self::apply_edited_parameters(&mut self.lines, parameters)
+                }
+            }
+
+            self.mode = Mode::Main;
+        } else {
+            unimplemented!()
+        }
+    }
+
+    fn make_command_edition_mode(command: String, original_line: Line) -> Mode<'a> {
+        let selected_command_index = COMMANDS
             .iter()
             .position(|cmd| cmd.0 == command)
             .unwrap_or(0);
 
-        self.mode = Mode::Editing {
-            commands: SelectableList::new(COMMANDS.as_slice()).with_selected(index),
-        };
+        Mode::Editing {
+            what: EditingWhat::Command(
+                SelectableList::new(COMMANDS.as_slice()).with_selected(selected_command_index),
+            ),
+            original_line,
+        }
     }
 
-    pub fn confirm_command(&mut self) {
-        if let Mode::Editing { commands } = &mut self.mode {
-            let selected_command = commands.selected();
-            let selected_line = self.lines.selected();
+    fn make_parameters_edition_mode(parameters: String, original_line: Line) -> Mode<'a> {
+        Mode::Editing {
+            what: EditingWhat::Parameters(parameters),
+            original_line,
+        }
+    }
 
-            self.lines.items_mut()[selected_line].command =
-                COMMANDS[selected_command].0.to_string();
+    fn apply_edited_command(
+        lines: &mut SelectableList<Vec<Line>>,
+        command: &mut SelectableList<'_, &[Command]>,
+    ) {
+        lines.selected_item_mut().command = command.selected_item().0.to_string();
+    }
+
+    fn apply_edited_parameters(lines: &mut SelectableList<'_, Vec<Line>>, parameters: &str) {
+        lines.selected_item_mut().parameters = format!("{parameters}#");
+    }
+
+    pub fn cancel_edition(&mut self) {
+        if let Mode::Editing { original_line, .. } = &mut self.mode {
+            let line = self.lines.selected_item_mut();
+            std::mem::swap(line, original_line);
             self.mode = Mode::Main;
+        } else {
+            unimplemented!();
         }
     }
 }

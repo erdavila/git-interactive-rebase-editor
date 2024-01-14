@@ -134,4 +134,8 @@ where
     pub fn items_mut(&mut self) -> &mut T {
         &mut self.items
     }
+
+    pub fn selected_item_mut(&mut self) -> &mut <T as Indexable>::Item {
+        self.items.index_mut(self.selected())
+    }
 }

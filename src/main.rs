@@ -6,7 +6,7 @@ mod widgets;
 use std::io;
 
 use anyhow::Result;
-use app::{App, Mode};
+use app::{App, EditingWhat, Mode};
 use crossterm::{
     event::{self, Event, KeyCode, KeyModifiers},
     execute,
@@ -71,19 +71,19 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> Result<()> 
                     KeyCode::Down if key.modifiers == KeyModifiers::CONTROL => app.move_line_down(),
                     KeyCode::PageUp => app.lines.select_up(app.page_length - 1),
                     KeyCode::PageDown => app.lines.select_down(app.page_length - 1),
-                    KeyCode::Enter => app.edit_command(),
+                    KeyCode::Enter => app.enter_edition(),
                     _ => app.lines.input(key),
                 },
-                Mode::Editing { commands, .. } => {
-                    match key.code {
-                        KeyCode::Esc => {
-                            // TODO: temporary implementation
-                            app.mode = Mode::Main;
-                        }
-                        KeyCode::Enter => app.confirm_command(),
-                        _ => commands.input(key),
-                    }
-                }
+
+                Mode::Editing { what, .. } => match key.code {
+                    KeyCode::Esc => app.cancel_edition(),
+                    KeyCode::Enter => app.confirm_edition(),
+                    KeyCode::Tab => app.switch_edition(),
+                    _ => match what {
+                        EditingWhat::Command(commands) => commands.input(key),
+                        EditingWhat::Parameters(_) => todo!(),
+                    },
+                },
             }
         }
     }
