@@ -1,6 +1,7 @@
 mod app;
 mod tui;
 mod ui;
+mod widgets;
 
 use std::io;
 
@@ -46,31 +47,25 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> Result<()> 
                 key.code = KeyCode::Char(char);
             }
 
-            match &app.mode {
+            match &mut app.mode {
                 Mode::Main => match key.code {
                     KeyCode::Esc | KeyCode::Char('q') => {
                         return Ok(());
                     }
-                    KeyCode::Up if key.modifiers == KeyModifiers::CONTROL => app.move_up(),
-                    KeyCode::Down if key.modifiers == KeyModifiers::CONTROL => app.move_down(),
-                    KeyCode::Up => app.select_up(1),
-                    KeyCode::Down => app.select_down(1),
-                    KeyCode::Home => app.select(0),
-                    KeyCode::End => app.select(app.last_line_index()),
-                    KeyCode::PageUp => app.select_up(app.page_length - 1),
-                    KeyCode::PageDown => app.select_down(app.page_length - 1),
+                    KeyCode::Up if key.modifiers == KeyModifiers::CONTROL => app.move_line_up(),
+                    KeyCode::Down if key.modifiers == KeyModifiers::CONTROL => app.move_line_down(),
+                    KeyCode::PageUp => app.lines.select_up(app.page_length - 1),
+                    KeyCode::PageDown => app.lines.select_down(app.page_length - 1),
                     KeyCode::Enter => app.edit_command(),
-                    _ => {}
+                    _ => app.lines.input(key),
                 },
-                Mode::EditingCommand { .. } => {
+                Mode::Editing { commands, .. } => {
                     match key.code {
                         KeyCode::Esc => {
                             // TODO: temporary implementation
                             app.mode = Mode::Main;
                         }
-                        KeyCode::Up => app.select_command_up(),
-                        KeyCode::Down => app.select_command_down(),
-                        _ => {}
+                        _ => commands.input(key),
                     }
                 }
             }

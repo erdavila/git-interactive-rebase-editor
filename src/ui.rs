@@ -2,17 +2,23 @@ use ratatui::{
     layout::{Constraint, Layout, Margin, Rect},
     style::{Style, Stylize},
     widgets::{
-        Block, Borders, Clear, List, ListItem, Padding, Paragraph, Scrollbar, ScrollbarOrientation,
+        Block, Borders, Clear, ListItem, Padding, Paragraph, Scrollbar, ScrollbarOrientation,
         ScrollbarState,
     },
     Frame,
 };
 
-use crate::app::{App, Line, Mode, COMMANDS};
+use crate::app::{App, Command, Line, Mode, COMMANDS};
 
-impl<'a> From<&Line> for ListItem<'a> {
-    fn from(line: &Line) -> Self {
+impl<'a> From<Line> for ListItem<'a> {
+    fn from(line: Line) -> Self {
         ListItem::new(format!("{:10} {}", line.command, line.parameters))
+    }
+}
+
+impl<'a> From<&Command> for ListItem<'a> {
+    fn from(command: &Command) -> Self {
+        ListItem::new(command.0)
     }
 }
 
@@ -27,54 +33,50 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
         [chunks[0], chunks[1]]
     };
 
-    let lines = List::new(&app.lines)
-        .highlight_style(Style::default().reversed())
-        .block(
-            Block::default()
-                .title(" Git Interactive Rebase ")
-                .borders(Borders::ALL)
-                .padding(Padding::horizontal(1)),
-        );
+    let lines_count = app.lines.items().len();
+    let (lines, lines_state) = app.lines.widget_and_state();
+    let lines = lines.highlight_style(Style::default().reversed()).block(
+        Block::default()
+            .title(" Git Interactive Rebase ")
+            .borders(Borders::ALL)
+            .padding(Padding::horizontal(1)),
+    );
     app.page_length = lines_area.height as usize - 2;
-    frame.render_stateful_widget(lines, lines_area, &mut app.lines_widget_state);
+    frame.render_stateful_widget(lines, lines_area, lines_state);
 
     let scrollbar = Scrollbar::new(ScrollbarOrientation::VerticalRight);
     let scrollbar_area = lines_area.inner(&Margin {
         horizontal: 0,
         vertical: 1,
     });
-    let mut scrollbar_state = ScrollbarState::new(
-        app.lines
-            .len()
-            .saturating_sub(scrollbar_area.height as usize),
-    )
-    .position(app.lines_widget_state.offset());
+    let mut scrollbar_state =
+        ScrollbarState::new(lines_count.saturating_sub(scrollbar_area.height as usize))
+            .position(lines_state.offset());
     frame.render_stateful_widget(scrollbar, scrollbar_area, &mut scrollbar_state);
 
     let footer_text = match &mut app.mode {
         Mode::Main => "CTRL+↑/CTRL+↓: move | ENTER: edit | ESC/Q: quit",
-        Mode::EditingCommand { list_state } => {
-            let mut commands_area = Rect {
+        Mode::Editing { commands, .. } => {
+            let mut cmds_area = Rect {
                 x: lines_area.x + 3,
-                y: (app.lines_widget_state.selected().unwrap() - app.lines_widget_state.offset())
-                    as u16,
-                width: COMMANDS.iter().map(|cmd| cmd.len()).max().unwrap_or(0) as u16 + 4,
+                y: (lines_state.selected().unwrap() - lines_state.offset()) as u16,
+                width: COMMANDS.iter().map(|cmd| cmd.0.len()).max().unwrap_or(0) as u16 + 4,
                 height: COMMANDS.len() as u16 + 2,
             };
-            if commands_area.bottom() > lines_area.bottom() {
-                commands_area.y -= commands_area.bottom() - lines_area.bottom();
+            if cmds_area.bottom() > lines_area.bottom() {
+                cmds_area.y -= cmds_area.bottom() - lines_area.bottom();
             }
 
-            let commands = List::new(COMMANDS)
-                .highlight_style(Style::default().reversed())
-                .block(
-                    Block::default()
-                        .padding(Padding::horizontal(1))
-                        .borders(Borders::ALL),
-                );
+            let (cmds, cmds_state) = commands.widget_and_state();
 
-            frame.render_widget(Clear, commands_area);
-            frame.render_stateful_widget(commands, commands_area, list_state);
+            let cmds = cmds.highlight_style(Style::default().reversed()).block(
+                Block::default()
+                    .padding(Padding::horizontal(1))
+                    .borders(Borders::ALL),
+            );
+
+            frame.render_widget(Clear, cmds_area);
+            frame.render_stateful_widget(cmds, cmds_area, cmds_state);
 
             "ESC: cancel editing"
         }
