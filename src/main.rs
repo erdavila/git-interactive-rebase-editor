@@ -7,7 +7,11 @@ use std::io;
 
 use anyhow::Result;
 use app::{App, Mode};
-use crossterm::event::{self, Event, KeyCode, KeyModifiers};
+use crossterm::{
+    event::{self, Event, KeyCode, KeyModifiers},
+    execute,
+    terminal::{disable_raw_mode, LeaveAlternateScreen},
+};
 use ratatui::{
     backend::{Backend, CrosstermBackend},
     Terminal,
@@ -22,6 +26,7 @@ fn main() -> Result<()> {
     let mut tui = Tui::new(terminal);
 
     tui.enter()?;
+    setup_panic_hook();
 
     let mut app = App::new();
     run_app(&mut tui.terminal, &mut app)?;
@@ -29,6 +34,16 @@ fn main() -> Result<()> {
     tui.reset()?;
 
     Ok(())
+}
+
+fn setup_panic_hook() {
+    let panic_hook = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |panic| {
+        disable_raw_mode().unwrap();
+        execute!(io::stdout(), LeaveAlternateScreen).unwrap();
+
+        panic_hook(panic);
+    }));
 }
 
 fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> Result<()> {
