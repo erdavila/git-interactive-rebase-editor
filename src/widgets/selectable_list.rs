@@ -10,6 +10,18 @@ pub trait Indexable: Clone {
     fn len(&self) -> usize;
 }
 
+impl<T: Clone, const N: usize> Indexable for [T; N] {
+    type Item = T;
+
+    fn index(&self, index: usize) -> &Self::Item {
+        &self[index]
+    }
+
+    fn len(&self) -> usize {
+        slice_len(self)
+    }
+}
+
 impl<T> Indexable for &[T] {
     type Item = T;
 

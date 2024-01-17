@@ -6,7 +6,7 @@ mod widgets;
 use std::io;
 
 use anyhow::Result;
-use app::{App, EditingWhat, Mode};
+use app::{App, EditingWhat, Mode, RebaseConfirmation};
 use crossterm::{
     event::{self, Event, KeyCode, KeyModifiers},
     execute,
@@ -29,10 +29,11 @@ fn main() -> Result<()> {
     setup_panic_hook();
 
     let mut app = App::new();
-    run_app(&mut tui.terminal, &mut app)?;
+    let rebase_confirmation = run_app(&mut tui.terminal, &mut app);
 
     tui.reset()?;
 
+    println!("Should rebase? {}", rebase_confirmation?.0);
     Ok(())
 }
 
@@ -46,7 +47,7 @@ fn setup_panic_hook() {
     }));
 }
 
-fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> Result<()> {
+fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> Result<RebaseConfirmation> {
     loop {
         terminal.draw(|f| {
             ui(f, app);
@@ -64,9 +65,7 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> Result<()> 
 
             match &mut app.mode {
                 Mode::Main => match key.code {
-                    KeyCode::Esc | KeyCode::Char('q') => {
-                        return Ok(());
-                    }
+                    KeyCode::Esc | KeyCode::Char('q') => app.ask_rebase_confirmation(),
                     KeyCode::Up if key.modifiers == KeyModifiers::CONTROL => app.move_line_up(),
                     KeyCode::Down if key.modifiers == KeyModifiers::CONTROL => app.move_line_down(),
                     KeyCode::PageUp => app.lines.select_up(app.page_length - 1),
@@ -83,6 +82,14 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> Result<()> 
                         EditingWhat::Command(commands) => commands.input(key),
                         EditingWhat::Parameters(parameters) => parameters.input(key),
                     },
+                },
+
+                Mode::Quitting(rebase_confirmation) => match key.code {
+                    KeyCode::Esc => app.mode = Mode::Main,
+                    KeyCode::Char('y') => return Ok(RebaseConfirmation(true)),
+                    KeyCode::Char('n') => return Ok(RebaseConfirmation(false)),
+                    KeyCode::Enter => return Ok(*rebase_confirmation.selected_item()),
+                    _ => rebase_confirmation.input(key),
                 },
             }
         }

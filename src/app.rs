@@ -1,5 +1,8 @@
 use crate::widgets::{selectable_list::SelectableList, text_input::TextInput};
 
+#[derive(Clone, Copy)]
+pub struct RebaseConfirmation(pub bool);
+
 pub struct Command(pub &'static str);
 
 pub const COMMANDS: [Command; 12] = [
@@ -34,6 +37,7 @@ pub enum Mode<'a> {
         what: EditingWhat<'a>,
         original_line: Line,
     },
+    Quitting(SelectableList<'a, [RebaseConfirmation; 2]>),
 }
 
 pub struct App<'a> {
@@ -170,5 +174,12 @@ impl<'a> App<'a> {
         } else {
             unimplemented!();
         }
+    }
+
+    pub fn ask_rebase_confirmation(&mut self) {
+        self.mode = Mode::Quitting(SelectableList::new([
+            RebaseConfirmation(true),
+            RebaseConfirmation(false),
+        ]));
     }
 }
