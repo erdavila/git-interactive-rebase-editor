@@ -1,4 +1,4 @@
-use crate::widgets::selectable_list::SelectableList;
+use crate::widgets::{selectable_list::SelectableList, text_input::TextInput};
 
 pub struct Command(pub &'static str);
 
@@ -25,7 +25,7 @@ pub struct Line {
 
 pub enum EditingWhat<'a> {
     Command(SelectableList<'a, &'a [Command]>),
-    Parameters(String),
+    Parameters(TextInput),
 }
 
 pub enum Mode<'a> {
@@ -146,7 +146,7 @@ impl<'a> App<'a> {
 
     fn make_parameters_edition_mode(parameters: String, original_line: Line) -> Mode<'a> {
         Mode::Editing {
-            what: EditingWhat::Parameters(parameters),
+            what: EditingWhat::Parameters(TextInput::new(parameters.chars())),
             original_line,
         }
     }
@@ -158,8 +158,8 @@ impl<'a> App<'a> {
         lines.selected_item_mut().command = command.selected_item().0.to_string();
     }
 
-    fn apply_edited_parameters(lines: &mut SelectableList<'_, Vec<Line>>, parameters: &str) {
-        lines.selected_item_mut().parameters = format!("{parameters}#");
+    fn apply_edited_parameters(lines: &mut SelectableList<'_, Vec<Line>>, parameters: &TextInput) {
+        lines.selected_item_mut().parameters = parameters.content().iter().collect::<String>();
     }
 
     pub fn cancel_edition(&mut self) {

@@ -94,10 +94,10 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
                 width: lines_area.right() - x,
                 height: 3,
             };
-            let params =
-                Paragraph::new(parameters.clone()).block(Block::default().borders(Borders::ALL));
-            frame.render_widget(Clear, params_area);
-            frame.render_widget(params, params_area);
+
+            let (widget, widget_state) = parameters.widget_and_state();
+            let widget = widget.block(Block::default().borders(Borders::ALL));
+            frame.render_stateful_widget(widget, params_area, widget_state);
 
             "TAB: edit command | ENTER: confirm | ESC: cancel editing"
         }

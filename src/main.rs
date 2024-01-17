@@ -81,7 +81,7 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> Result<()> 
                     KeyCode::Tab => app.switch_edition(),
                     _ => match what {
                         EditingWhat::Command(commands) => commands.input(key),
-                        EditingWhat::Parameters(_) => todo!(),
+                        EditingWhat::Parameters(parameters) => parameters.input(key),
                     },
                 },
             }
