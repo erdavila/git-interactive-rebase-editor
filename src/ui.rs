@@ -1,6 +1,7 @@
 use ratatui::{
     layout::{Constraint, Layout, Margin, Rect},
     style::{Style, Stylize},
+    text::Span,
     widgets::{
         Block, Borders, Clear, ListItem, Padding, Paragraph, Scrollbar, ScrollbarOrientation,
         ScrollbarState,
@@ -69,8 +70,13 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
             .position(lines_state.offset());
     frame.render_stateful_widget(scrollbar, scrollbar_area, &mut scrollbar_state);
 
-    let footer_text = match &mut app.mode {
-        Mode::Main => "CTRL+↑/CTRL+↓: move | ENTER: edit | DELETE: remove | ESC/Q: quit",
+    let footer_content: &[(&[&'static str], &'static str)] = match &mut app.mode {
+        Mode::Main => &[
+            (&["CTRL+↑", "CTRL+↓"], "move"),
+            (&["ENTER"], "edit"),
+            (&["DELETE"], "remove"),
+            (&["ESC", "Q"], "quit"),
+        ],
 
         Mode::Editing {
             what: EditingWhat::Command(commands),
@@ -97,7 +103,11 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
             frame.render_widget(Clear, cmds_area);
             frame.render_stateful_widget(cmds, cmds_area, cmds_state);
 
-            "TAB: edit parameters | ENTER: confirm | ESC: cancel editing"
+            &[
+                (&["TAB"], "edit parameters"),
+                (&["ENTER"], "confirm"),
+                (&["ESC"], "cancel editing"),
+            ]
         }
 
         Mode::Editing {
@@ -116,7 +126,11 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
             let widget = widget.block(Block::default().borders(Borders::ALL));
             frame.render_stateful_widget(widget, params_area, widget_state);
 
-            "TAB: edit command | ENTER: confirm | ESC: cancel editing"
+            &[
+                (&["TAB"], "edit command"),
+                (&["ENTER"], "confirm"),
+                (&["ESC"], "cancel editing"),
+            ]
         }
 
         Mode::Quitting(rebase_confirmation) => {
@@ -165,11 +179,29 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
                 .highlight_symbol(" " /*left padding*/);
             frame.render_stateful_widget(confirmation, confirmation_area, confirmation_state);
 
-            "Y: quit and rebase | N: quit and don't rebase | ESC: don't quit"
+            &[
+                (&["Y"], "quit and rebase"),
+                (&["N"], "quit and don't rebase"),
+                (&["ESC"], "don't quit"),
+            ]
         }
     };
 
-    let footer = Paragraph::new(footer_text).style(Style::default().reversed());
+    let actions = footer_content.iter().map(|(keys, action)| {
+        interspace(*keys)
+            .map(|item| match item {
+                Some(key) => Span::from(*key).style(Style::default().bold()),
+                None => Span::from("/"),
+            })
+            .chain(std::iter::once(Span::from(format!(": {action}"))))
+    });
+    let footer_spans: Vec<_> = interspace(actions)
+        .flat_map(|item| match item {
+            Some(action) => action.collect(),
+            None => vec![Span::from(" | ")],
+        })
+        .collect();
+    let footer = Paragraph::new(ratatui::text::Line::from(footer_spans));
     frame.render_widget(footer, footer_area);
 }
 
@@ -188,4 +220,14 @@ fn centered_rect(width: u16, height: u16, enclosing_rect: Rect) -> Rect {
 
 fn centered_pos(length: u16, enclosing_pos: u16, enclosing_length: u16) -> u16 {
     enclosing_pos + (enclosing_length - length) / 2
+}
+
+fn interspace<I>(items: impl IntoIterator<Item = I>) -> impl Iterator<Item = Option<I>> {
+    items.into_iter().enumerate().flat_map(|(index, item)| {
+        if index == 0 {
+            vec![Some(item)]
+        } else {
+            vec![None, Some(item)]
+        }
+    })
 }
