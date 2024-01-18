@@ -47,25 +47,9 @@ pub struct App<'a> {
 }
 
 impl<'a> App<'a> {
-    pub fn new() -> Self {
+    pub fn new(lines: Vec<Line>) -> Self {
         App {
-            lines: SelectableList::new(
-                (1u32..=50)
-                    .map(|n| {
-                        let command = match n % 3 {
-                            0 => "pick",
-                            1 => "edit",
-                            _ => "drop",
-                        }
-                        .to_owned();
-                        let parameters = format!("parameters {n}");
-                        Line {
-                            command,
-                            parameters,
-                        }
-                    })
-                    .collect(),
-            ),
+            lines: SelectableList::new(lines),
             page_length: 0,
             mode: Mode::Main,
         }

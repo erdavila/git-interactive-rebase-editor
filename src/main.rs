@@ -3,10 +3,14 @@ mod tui;
 mod ui;
 mod widgets;
 
-use std::io;
+use std::{
+    env,
+    fs::File,
+    io::{self, BufRead, BufReader, BufWriter, Write},
+};
 
 use anyhow::Result;
-use app::{App, EditingWhat, Mode, RebaseConfirmation};
+use app::{App, EditingWhat, Line, Mode, RebaseConfirmation};
 use crossterm::{
     event::{self, Event, KeyCode, KeyModifiers},
     execute,
@@ -21,6 +25,13 @@ use tui::Tui;
 use crate::ui::ui;
 
 fn main() -> Result<()> {
+    let path = {
+        let mut args = env::args();
+        args.next();
+        args.next().unwrap()
+    };
+    let lines = read_lines(&path)?;
+
     let backend = CrosstermBackend::new(io::stdout());
     let terminal = Terminal::new(backend)?;
     let mut tui = Tui::new(terminal);
@@ -28,12 +39,18 @@ fn main() -> Result<()> {
     tui.enter()?;
     setup_panic_hook();
 
-    let mut app = App::new();
+    let mut app = App::new(lines);
     let rebase_confirmation = run_app(&mut tui.terminal, &mut app);
 
     tui.reset()?;
 
-    println!("Should rebase? {}", rebase_confirmation?.0);
+    let lines: &[Line] = if rebase_confirmation?.0 {
+        app.lines.items()
+    } else {
+        &[]
+    };
+    save_lines(lines, &path)?;
+
     Ok(())
 }
 
@@ -94,4 +111,36 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> Result<Reba
             }
         }
     }
+}
+
+fn read_lines(path: &str) -> Result<Vec<Line>> {
+    let file = BufReader::new(File::open(path)?);
+
+    let mut lines = Vec::new();
+    for line in file.lines() {
+        let line = line?;
+        let line = line.trim();
+
+        if line.starts_with('#') || line.is_empty() {
+            continue;
+        }
+
+        let (command, parameters) = line.split_once(' ').unwrap_or((line, ""));
+        let line = Line {
+            command: command.to_string(),
+            parameters: parameters.to_string(),
+        };
+
+        lines.push(line);
+    }
+
+    Ok(lines)
+}
+
+fn save_lines(lines: &[Line], path: &str) -> Result<()> {
+    let mut file = BufWriter::new(File::create(path)?);
+    for line in lines {
+        writeln!(file, "{} {}", line.command, line.parameters)?;
+    }
+    Ok(())
 }
