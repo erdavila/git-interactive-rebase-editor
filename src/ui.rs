@@ -75,6 +75,7 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
             (&["CTRL+↑", "CTRL+↓"], "move"),
             (&["ENTER"], "edit"),
             (&["DELETE"], "remove"),
+            (&["2"], "duplicate"),
             (&["ESC", "Q"], "quit"),
         ],
 

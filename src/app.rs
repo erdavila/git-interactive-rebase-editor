@@ -174,4 +174,11 @@ impl<'a> App<'a> {
             self.lines.select_up(1);
         }
     }
+
+    pub fn duplicate_line(&mut self) {
+        let line = self.lines.selected_item().clone();
+        let index = self.lines.selected();
+        self.lines.items_mut().insert(index, line);
+        self.lines.select_down(1);
+    }
 }

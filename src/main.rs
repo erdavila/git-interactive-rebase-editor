@@ -89,6 +89,7 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> Result<Reba
                     KeyCode::PageDown => app.lines.select_down(app.page_length - 1),
                     KeyCode::Enter => app.enter_edition(),
                     KeyCode::Delete => app.remove_line(),
+                    KeyCode::Char('2') => app.duplicate_line(),
                     _ => app.lines.input(key),
                 },
 
