@@ -166,4 +166,12 @@ impl<'a> App<'a> {
             RebaseConfirmation(false),
         ]));
     }
+
+    pub fn remove_line(&mut self) {
+        let index = self.lines.selected();
+        self.lines.items_mut().remove(index);
+        if index == self.lines.items().len() {
+            self.lines.select_up(1);
+        }
+    }
 }

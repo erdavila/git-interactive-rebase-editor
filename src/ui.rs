@@ -70,7 +70,7 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
     frame.render_stateful_widget(scrollbar, scrollbar_area, &mut scrollbar_state);
 
     let footer_text = match &mut app.mode {
-        Mode::Main => "CTRL+↑/CTRL+↓: move | ENTER: edit | ESC/Q: quit",
+        Mode::Main => "CTRL+↑/CTRL+↓: move | ENTER: edit | DELETE: remove | ESC/Q: quit",
 
         Mode::Editing {
             what: EditingWhat::Command(commands),
