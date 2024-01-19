@@ -74,6 +74,7 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
         Mode::Main => &[
             (&["CTRL+↑", "CTRL+↓"], "move"),
             (&["ENTER"], "edit"),
+            (&["INSERT"], "insert"),
             (&["DELETE"], "remove"),
             (&["2"], "duplicate"),
             (&["ESC", "Q"], "quit"),

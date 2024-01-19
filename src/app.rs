@@ -35,7 +35,7 @@ pub enum Mode<'a> {
     Main,
     Editing {
         what: EditingWhat<'a>,
-        original_line: Line,
+        original_line: Option<Line>,
     },
     Quitting(SelectableList<'a, [RebaseConfirmation; 2]>),
 }
@@ -74,7 +74,7 @@ impl<'a> App<'a> {
     pub fn enter_edition(&mut self) {
         let original_line = self.lines.selected_item().clone();
         let command = original_line.command.clone();
-        self.mode = Self::make_command_edition_mode(command, original_line);
+        self.mode = Self::make_command_edition_mode(command, Some(original_line));
     }
 
     pub fn switch_edition(&mut self) {
@@ -118,7 +118,7 @@ impl<'a> App<'a> {
         }
     }
 
-    fn make_command_edition_mode(command: String, original_line: Line) -> Mode<'a> {
+    fn make_command_edition_mode(command: String, original_line: Option<Line>) -> Mode<'a> {
         let selected_command_index = COMMANDS
             .iter()
             .position(|cmd| cmd.0 == command)
@@ -132,7 +132,7 @@ impl<'a> App<'a> {
         }
     }
 
-    fn make_parameters_edition_mode(parameters: String, original_line: Line) -> Mode<'a> {
+    fn make_parameters_edition_mode(parameters: String, original_line: Option<Line>) -> Mode<'a> {
         Mode::Editing {
             what: EditingWhat::Parameters(TextInput::new(parameters.chars())),
             original_line,
@@ -152,8 +152,16 @@ impl<'a> App<'a> {
 
     pub fn cancel_edition(&mut self) {
         if let Mode::Editing { original_line, .. } = &mut self.mode {
-            let line = self.lines.selected_item_mut();
-            std::mem::swap(line, original_line);
+            match original_line {
+                Some(original_line) => {
+                    let line = self.lines.selected_item_mut();
+                    std::mem::swap(line, original_line);
+                }
+                None => {
+                    let index = self.lines.selected();
+                    self.lines.items_mut().remove(index);
+                }
+            }
             self.mode = Mode::Main;
         } else {
             unimplemented!();
@@ -165,6 +173,19 @@ impl<'a> App<'a> {
             RebaseConfirmation(true),
             RebaseConfirmation(false),
         ]));
+    }
+
+    pub fn insert_line(&mut self) {
+        let index = self.lines.selected();
+        let command = COMMANDS[0].0.to_string();
+        self.lines.items_mut().insert(
+            index,
+            Line {
+                command: command.clone(),
+                parameters: String::new(),
+            },
+        );
+        self.mode = Self::make_command_edition_mode(command, None);
     }
 
     pub fn remove_line(&mut self) {
