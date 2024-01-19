@@ -71,14 +71,20 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
     frame.render_stateful_widget(scrollbar, scrollbar_area, &mut scrollbar_state);
 
     let footer_content: &[(&[&'static str], &'static str)] = match &mut app.mode {
-        Mode::Main => &[
-            (&["CTRL+↑", "CTRL+↓"], "move"),
-            (&["ENTER"], "edit"),
-            (&["INSERT"], "insert"),
-            (&["DELETE"], "remove"),
-            (&["2"], "duplicate"),
-            (&["ESC", "Q"], "quit"),
-        ],
+        Mode::Main => {
+            if app.lines.items().is_empty() {
+                &[(&["INSERT"], "insert"), (&["ESC", "Q"], "quit")]
+            } else {
+                &[
+                    (&["CTRL+↑", "CTRL+↓"], "move"),
+                    (&["ENTER"], "edit"),
+                    (&["INSERT"], "insert"),
+                    (&["DELETE"], "remove"),
+                    (&["2"], "duplicate"),
+                    (&["ESC", "Q"], "quit"),
+                ]
+            }
+        }
 
         Mode::Editing {
             what: EditingWhat::Command(commands),

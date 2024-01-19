@@ -83,12 +83,14 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> Result<Reba
             match &mut app.mode {
                 Mode::Main => match key.code {
                     KeyCode::Esc | KeyCode::Char('q') => app.ask_rebase_confirmation(),
+                    KeyCode::Insert => app.insert_line(),
+                    _ if app.lines.items().is_empty() => {}
+                    // Actions below are available only if the list is not empty
                     KeyCode::Up if key.modifiers == KeyModifiers::CONTROL => app.move_line_up(),
                     KeyCode::Down if key.modifiers == KeyModifiers::CONTROL => app.move_line_down(),
                     KeyCode::PageUp => app.lines.select_up(app.page_length - 1),
                     KeyCode::PageDown => app.lines.select_down(app.page_length - 1),
                     KeyCode::Enter => app.enter_edition(),
-                    KeyCode::Insert => app.insert_line(),
                     KeyCode::Delete => app.remove_line(),
                     KeyCode::Char('2') => app.duplicate_line(),
                     _ => app.lines.input(key),
