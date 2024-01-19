@@ -202,4 +202,33 @@ impl<'a> App<'a> {
         self.lines.items_mut().insert(index, line);
         self.lines.select_down(1);
     }
+
+    pub fn select_command_by_char(command: &mut SelectableList<'_, &[Command]>, char: char) {
+        struct Found {
+            command_index: usize,
+            char_pos: usize,
+        }
+
+        let mut found = None;
+
+        for (i, Command(cmd)) in command.items().iter().enumerate() {
+            if let Some(p) = cmd.chars().position(|ch| ch == char) {
+                if found.is_none() || matches!(found, Some(Found { char_pos, .. }) if p < char_pos)
+                {
+                    found = Some(Found {
+                        command_index: i,
+                        char_pos: p,
+                    });
+
+                    if p == 0 {
+                        break;
+                    }
+                }
+            }
+        }
+
+        if let Some(Found { command_index, .. }) = found {
+            command.select(command_index);
+        }
+    }
 }

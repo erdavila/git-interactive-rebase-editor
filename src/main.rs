@@ -100,6 +100,11 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> Result<Reba
                     KeyCode::Esc => app.cancel_edition(),
                     KeyCode::Enter => app.confirm_edition(),
                     KeyCode::Tab => app.switch_edition(),
+                    KeyCode::Char(char) => {
+                        if let EditingWhat::Command(command) = what {
+                            App::select_command_by_char(command, char);
+                        }
+                    }
                     _ => match what {
                         EditingWhat::Command(commands) => commands.input(key),
                         EditingWhat::Parameters(parameters) => parameters.input(key),
