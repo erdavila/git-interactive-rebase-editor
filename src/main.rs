@@ -10,7 +10,7 @@ use std::{
 };
 
 use anyhow::Result;
-use app::{App, EditingWhat, Line, Mode, RebaseConfirmation};
+use app::{App, EditingWhat, Mode, RebaseConfirmation, TodoItem};
 use crossterm::{
     event::{self, Event, KeyCode, KeyModifiers},
     execute,
@@ -30,7 +30,7 @@ fn main() -> Result<()> {
         args.next();
         args.next().unwrap()
     };
-    let lines = read_lines(&path)?;
+    let todo_items = read_todo_list(&path)?;
 
     let backend = CrosstermBackend::new(io::stdout());
     let terminal = Terminal::new(backend)?;
@@ -39,17 +39,17 @@ fn main() -> Result<()> {
     tui.enter()?;
     setup_panic_hook();
 
-    let mut app = App::new(lines);
+    let mut app = App::new(todo_items);
     let rebase_confirmation = run_app(&mut tui.terminal, &mut app);
 
     tui.reset()?;
 
-    let lines: &[Line] = if rebase_confirmation?.0 {
-        app.lines.items()
+    let items: &[TodoItem] = if rebase_confirmation?.0 {
+        app.todo_list.items()
     } else {
         &[]
     };
-    save_lines(lines, &path)?;
+    save_todo_list(items, &path)?;
 
     Ok(())
 }
@@ -83,17 +83,21 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> Result<Reba
             match &mut app.mode {
                 Mode::Main => match key.code {
                     KeyCode::Esc | KeyCode::Char('q') => app.ask_rebase_confirmation(),
-                    KeyCode::Insert => app.insert_line(),
-                    _ if app.lines.items().is_empty() => {}
+                    KeyCode::Insert => app.insert_todo_item(),
+                    _ if app.todo_list.items().is_empty() => {}
                     // Actions below are available only if the list is not empty
-                    KeyCode::Up if key.modifiers == KeyModifiers::CONTROL => app.move_line_up(),
-                    KeyCode::Down if key.modifiers == KeyModifiers::CONTROL => app.move_line_down(),
-                    KeyCode::PageUp => app.lines.select_up(app.page_length - 1),
-                    KeyCode::PageDown => app.lines.select_down(app.page_length - 1),
+                    KeyCode::Up if key.modifiers == KeyModifiers::CONTROL => {
+                        app.move_todo_item_up()
+                    }
+                    KeyCode::Down if key.modifiers == KeyModifiers::CONTROL => {
+                        app.move_todo_item_down()
+                    }
+                    KeyCode::PageUp => app.todo_list.select_up(app.page_length - 1),
+                    KeyCode::PageDown => app.todo_list.select_down(app.page_length - 1),
                     KeyCode::Enter => app.enter_edition(),
-                    KeyCode::Delete => app.remove_line(),
-                    KeyCode::Char('2') => app.duplicate_line(),
-                    _ => app.lines.input(key),
+                    KeyCode::Delete => app.remove_todo_item(),
+                    KeyCode::Char('2') => app.duplicate_todo_item(),
+                    _ => app.todo_list.input(key),
                 },
 
                 Mode::Editing { what, .. } => match key.code {
@@ -123,34 +127,34 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> Result<Reba
     }
 }
 
-fn read_lines(path: &str) -> Result<Vec<Line>> {
+fn read_todo_list(path: &str) -> Result<Vec<TodoItem>> {
     let file = BufReader::new(File::open(path)?);
 
-    let mut lines = Vec::new();
-    for line in file.lines() {
-        let line = line?;
-        let line = line.trim();
+    let mut items = Vec::new();
+    for item in file.lines() {
+        let item = item?;
+        let item = item.trim();
 
-        if line.starts_with('#') || line.is_empty() {
+        if item.starts_with('#') || item.is_empty() {
             continue;
         }
 
-        let (command, parameters) = line.split_once(' ').unwrap_or((line, ""));
-        let line = Line {
+        let (command, parameters) = item.split_once(' ').unwrap_or((item, ""));
+        let item = TodoItem {
             command: command.to_string(),
             parameters: parameters.to_string(),
         };
 
-        lines.push(line);
+        items.push(item);
     }
 
-    Ok(lines)
+    Ok(items)
 }
 
-fn save_lines(lines: &[Line], path: &str) -> Result<()> {
+fn save_todo_list(items: &[TodoItem], path: &str) -> Result<()> {
     let mut file = BufWriter::new(File::create(path)?);
-    for line in lines {
-        writeln!(file, "{} {}", line.command, line.parameters)?;
+    for item in items {
+        writeln!(file, "{} {}", item.command, item.parameters)?;
     }
     Ok(())
 }

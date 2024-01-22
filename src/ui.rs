@@ -9,11 +9,11 @@ use ratatui::{
     Frame,
 };
 
-use crate::app::{App, Command, EditingWhat, Line, Mode, RebaseConfirmation, COMMANDS};
+use crate::app::{App, Command, EditingWhat, Mode, RebaseConfirmation, TodoItem, COMMANDS};
 
-impl<'a> From<Line> for ListItem<'a> {
-    fn from(line: Line) -> Self {
-        ListItem::new(format!("{:10} {}", line.command, line.parameters))
+impl<'a> From<TodoItem> for ListItem<'a> {
+    fn from(item: TodoItem) -> Self {
+        ListItem::new(format!("{:10} {}", item.command, item.parameters))
     }
 }
 
@@ -39,7 +39,7 @@ impl RebaseConfirmation {
 }
 
 pub fn ui(frame: &mut Frame, app: &mut App) {
-    let [lines_area, footer_area] = {
+    let [todo_list_area, footer_area] = {
         let chunks = Layout::default()
             .constraints([
                 Constraint::Min(COMMANDS.len() as u16),
@@ -49,30 +49,32 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
         [chunks[0], chunks[1]]
     };
 
-    let lines_count = app.lines.items().len();
-    let (lines, lines_state) = app.lines.widget_and_state();
-    let lines = lines.highlight_style(Style::default().reversed()).block(
-        Block::default()
-            .title(" Git Interactive Rebase ")
-            .borders(Borders::ALL)
-            .padding(Padding::horizontal(1)),
-    );
-    app.page_length = lines_area.height as usize - 2;
-    frame.render_stateful_widget(lines, lines_area, lines_state);
+    let todo_items_count = app.todo_list.items().len();
+    let (todo_list, todo_list_state) = app.todo_list.widget_and_state();
+    let todo_list = todo_list
+        .highlight_style(Style::default().reversed())
+        .block(
+            Block::default()
+                .title(" Git Interactive Rebase ")
+                .borders(Borders::ALL)
+                .padding(Padding::horizontal(1)),
+        );
+    app.page_length = todo_list_area.height as usize - 2;
+    frame.render_stateful_widget(todo_list, todo_list_area, todo_list_state);
 
     let scrollbar = Scrollbar::new(ScrollbarOrientation::VerticalRight);
-    let scrollbar_area = lines_area.inner(&Margin {
+    let scrollbar_area = todo_list_area.inner(&Margin {
         horizontal: 0,
         vertical: 1,
     });
     let mut scrollbar_state =
-        ScrollbarState::new(lines_count.saturating_sub(scrollbar_area.height as usize))
-            .position(lines_state.offset());
+        ScrollbarState::new(todo_items_count.saturating_sub(scrollbar_area.height as usize))
+            .position(todo_list_state.offset());
     frame.render_stateful_widget(scrollbar, scrollbar_area, &mut scrollbar_state);
 
     let footer_content: &[(&[&'static str], &'static str)] = match &mut app.mode {
         Mode::Main => {
-            if app.lines.items().is_empty() {
+            if app.todo_list.items().is_empty() {
                 &[(&["INSERT"], "insert"), (&["ESC", "Q"], "quit")]
             } else {
                 &[
@@ -91,13 +93,13 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
             ..
         } => {
             let mut cmds_area = Rect {
-                x: lines_area.x + 3,
-                y: (lines_state.selected().unwrap() - lines_state.offset()) as u16,
+                x: todo_list_area.x + 3,
+                y: (todo_list_state.selected().unwrap() - todo_list_state.offset()) as u16,
                 width: max_command_len() as u16 + 4,
                 height: COMMANDS.len() as u16 + 2,
             };
-            if cmds_area.bottom() > lines_area.bottom() {
-                cmds_area.y -= cmds_area.bottom() - lines_area.bottom();
+            if cmds_area.bottom() > todo_list_area.bottom() {
+                cmds_area.y -= cmds_area.bottom() - todo_list_area.bottom();
             }
 
             let (cmds, cmds_state) = commands.widget_and_state();
@@ -125,8 +127,8 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
             let x = max_command_len() as u16 + 2;
             let params_area = Rect {
                 x,
-                y: (lines_state.selected().unwrap() - lines_state.offset()) as u16,
-                width: lines_area.right() - x,
+                y: (todo_list_state.selected().unwrap() - todo_list_state.offset()) as u16,
+                width: todo_list_area.right() - x,
                 height: 3,
             };
 
