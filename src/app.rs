@@ -1,3 +1,7 @@
+use std::fmt::Write;
+
+use anyhow::Result;
+
 use crate::widgets::{selectable_list::SelectableList, text_input::TextInput};
 
 #[derive(Clone, Copy)]
@@ -37,6 +41,9 @@ pub enum Mode<'a> {
         what: EditingWhat<'a>,
         original_item: Option<TodoItem>,
     },
+    ShowingOriginal {
+        scroll: u16,
+    },
     Quitting(SelectableList<'a, [RebaseConfirmation; 2]>),
 }
 
@@ -44,14 +51,19 @@ pub struct App<'a> {
     pub todo_list: SelectableList<'a, Vec<TodoItem>>,
     pub page_length: usize,
     pub mode: Mode<'a>,
+    pub original_todo_list_lines: Vec<&'a str>,
 }
 
 impl<'a> App<'a> {
-    pub fn new(todo_list_items: Vec<TodoItem>) -> Self {
+    pub fn new(todo_list: &'a str) -> Self {
+        let todo_list_lines: Vec<_> = todo_list.lines().collect();
+        let todo_list_items = parse_todo_list(&todo_list_lines);
+
         App {
             todo_list: SelectableList::new(todo_list_items),
             page_length: 0,
             mode: Mode::Main,
+            original_todo_list_lines: todo_list_lines,
         }
     }
 
@@ -237,4 +249,35 @@ impl<'a> App<'a> {
             command.select(command_index);
         }
     }
+
+    pub fn show_original_todo_list(&mut self) {
+        self.mode = Mode::ShowingOriginal { scroll: 0 };
+    }
+
+    pub fn get_todo_list_string(&self) -> Result<String> {
+        format_todo_list(self.todo_list.items())
+    }
+}
+
+fn parse_todo_list(todo_list_lines: &[&str]) -> Vec<TodoItem> {
+    todo_list_lines
+        .iter()
+        .map(|line| line.trim())
+        .filter(|line| !line.is_empty() && !line.starts_with('#'))
+        .map(|line| {
+            let (command, parameters) = line.split_once(' ').unwrap_or((line, ""));
+            TodoItem {
+                command: command.to_string(),
+                parameters: parameters.to_string(),
+            }
+        })
+        .collect()
+}
+
+fn format_todo_list(todo_items: &[TodoItem]) -> Result<String> {
+    let mut str = String::new();
+    for item in todo_items {
+        writeln!(&mut str, "{} {}", item.command, item.parameters)?;
+    }
+    Ok(str)
 }

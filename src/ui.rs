@@ -1,7 +1,7 @@
 use ratatui::{
-    layout::{Constraint, Layout, Margin, Rect},
+    layout::{Constraint, Direction, Layout, Margin, Rect},
     style::{Style, Stylize},
-    text::Span,
+    text::{Line, Span},
     widgets::{
         Block, Borders, Clear, ListItem, Padding, Paragraph, Scrollbar, ScrollbarOrientation,
         ScrollbarState,
@@ -62,20 +62,22 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
     app.page_length = todo_list_area.height as usize - 2;
     frame.render_stateful_widget(todo_list, todo_list_area, todo_list_state);
 
-    let scrollbar = Scrollbar::new(ScrollbarOrientation::VerticalRight);
-    let scrollbar_area = todo_list_area.inner(&Margin {
-        horizontal: 0,
-        vertical: 1,
-    });
-    let mut scrollbar_state =
-        ScrollbarState::new(todo_items_count.saturating_sub(scrollbar_area.height as usize))
-            .position(todo_list_state.offset());
-    frame.render_stateful_widget(scrollbar, scrollbar_area, &mut scrollbar_state);
+    render_vertical_scroll_bar(
+        frame,
+        todo_items_count,
+        todo_list_area,
+        true,
+        todo_list_state.offset(),
+    );
 
     let footer_content: &[(&[&'static str], &'static str)] = match &mut app.mode {
         Mode::Main => {
             if app.todo_list.items().is_empty() {
-                &[(&["INSERT"], "insert"), (&["ESC", "Q"], "quit")]
+                &[
+                    (&["INSERT"], "insert"),
+                    (&["o"], "show original todo list"),
+                    (&["ESC", "Q"], "quit"),
+                ]
             } else {
                 &[
                     (&["CTRL+↑", "CTRL+↓"], "move"),
@@ -83,6 +85,7 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
                     (&["INSERT"], "insert"),
                     (&["DELETE"], "remove"),
                     (&["2"], "duplicate"),
+                    (&["o"], "show original todo list"),
                     (&["ESC", "Q"], "quit"),
                 ]
             }
@@ -141,6 +144,59 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
                 (&["ENTER"], "confirm"),
                 (&["ESC"], "cancel editing"),
             ]
+        }
+
+        Mode::ShowingOriginal { scroll } => {
+            let original_todo_area = {
+                let chunks = Layout::default()
+                    .direction(Direction::Vertical)
+                    .constraints([
+                        Constraint::Length(5),
+                        Constraint::Min(1),
+                        Constraint::Length(5),
+                    ])
+                    .split(frame.size());
+
+                Layout::default()
+                    .direction(Direction::Horizontal)
+                    .constraints([
+                        Constraint::Length(7),
+                        Constraint::Min(1),
+                        Constraint::Length(7),
+                    ])
+                    .split(chunks[1])[1]
+            };
+
+            let max_scroll = (app.original_todo_list_lines.len() as u16)
+                .saturating_sub(original_todo_area.height - 2 /*margins*/);
+            *scroll = std::cmp::min(*scroll, max_scroll);
+
+            let p = Paragraph::new(
+                app.original_todo_list_lines
+                    .iter()
+                    .map(|line| Line::from(*line))
+                    .collect::<Vec<_>>(),
+            )
+            .scroll((*scroll, 0))
+            .block(
+                Block::default()
+                    .title("Original todo list")
+                    .borders(Borders::ALL)
+                    .padding(Padding::horizontal(1)),
+            );
+
+            frame.render_widget(Clear, original_todo_area);
+            frame.render_widget(p, original_todo_area);
+
+            render_vertical_scroll_bar(
+                frame,
+                app.original_todo_list_lines.len(),
+                original_todo_area,
+                true,
+                *scroll as usize,
+            );
+
+            &[(&["ESC"], "dismiss")]
         }
 
         Mode::Quitting(rebase_confirmation) => {
@@ -213,6 +269,27 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
         .collect();
     let footer = Paragraph::new(ratatui::text::Line::from(footer_spans));
     frame.render_widget(footer, footer_area);
+}
+
+fn render_vertical_scroll_bar(
+    frame: &mut Frame,
+    scrollable_items_count: usize,
+    mut scrollable_area: Rect,
+    with_border: bool,
+    offset: usize,
+) {
+    let scrollbar = Scrollbar::new(ScrollbarOrientation::VerticalRight);
+    if with_border {
+        scrollable_area = scrollable_area.inner(&Margin {
+            horizontal: 0,
+            vertical: 1,
+        });
+    }
+
+    let mut scrollbar_state =
+        ScrollbarState::new(scrollable_items_count.saturating_sub(scrollable_area.height as usize))
+            .position(offset);
+    frame.render_stateful_widget(scrollbar, scrollable_area, &mut scrollbar_state);
 }
 
 fn max_command_len() -> usize {

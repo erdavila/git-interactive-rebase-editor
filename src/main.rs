@@ -3,14 +3,10 @@ mod tui;
 mod ui;
 mod widgets;
 
-use std::{
-    env,
-    fs::File,
-    io::{self, BufRead, BufReader, BufWriter, Write},
-};
+use std::{env, fs, io};
 
 use anyhow::Result;
-use app::{App, EditingWhat, Mode, RebaseConfirmation, TodoItem};
+use app::{App, EditingWhat, Mode, RebaseConfirmation};
 use crossterm::{
     event::{self, Event, KeyCode, KeyModifiers},
     execute,
@@ -30,7 +26,7 @@ fn main() -> Result<()> {
         args.next();
         args.next().unwrap()
     };
-    let todo_items = read_todo_list(&path)?;
+    let todo_list = fs::read_to_string(&path)?;
 
     let backend = CrosstermBackend::new(io::stdout());
     let terminal = Terminal::new(backend)?;
@@ -39,17 +35,17 @@ fn main() -> Result<()> {
     tui.enter()?;
     setup_panic_hook();
 
-    let mut app = App::new(todo_items);
+    let mut app = App::new(&todo_list);
     let rebase_confirmation = run_app(&mut tui.terminal, &mut app);
 
     tui.reset()?;
 
-    let items: &[TodoItem] = if rebase_confirmation?.0 {
-        app.todo_list.items()
+    let todo_list = if rebase_confirmation?.0 {
+        app.get_todo_list_string()?
     } else {
-        &[]
+        String::new()
     };
-    save_todo_list(items, &path)?;
+    fs::write(path, todo_list)?;
 
     Ok(())
 }
@@ -84,8 +80,10 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> Result<Reba
                 Mode::Main => match key.code {
                     KeyCode::Esc | KeyCode::Char('q') => app.ask_rebase_confirmation(),
                     KeyCode::Insert => app.insert_todo_item(),
+                    KeyCode::Char('o') => app.show_original_todo_list(),
                     _ if app.todo_list.items().is_empty() => {}
-                    // Actions below are available only if the list is not empty
+
+                    // === Actions below are available only if the list is not empty ===
                     KeyCode::Up if key.modifiers == KeyModifiers::CONTROL => {
                         app.move_todo_item_up()
                     }
@@ -115,6 +113,13 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> Result<Reba
                     },
                 },
 
+                Mode::ShowingOriginal { scroll } => match key.code {
+                    KeyCode::Esc => app.mode = Mode::Main,
+                    KeyCode::Up => *scroll = scroll.saturating_sub(1),
+                    KeyCode::Down => *scroll = scroll.saturating_add(1),
+                    _ => {}
+                },
+
                 Mode::Quitting(rebase_confirmation) => match key.code {
                     KeyCode::Esc => app.mode = Mode::Main,
                     KeyCode::Char('y') => return Ok(RebaseConfirmation(true)),
@@ -125,36 +130,4 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> Result<Reba
             }
         }
     }
-}
-
-fn read_todo_list(path: &str) -> Result<Vec<TodoItem>> {
-    let file = BufReader::new(File::open(path)?);
-
-    let mut items = Vec::new();
-    for item in file.lines() {
-        let item = item?;
-        let item = item.trim();
-
-        if item.starts_with('#') || item.is_empty() {
-            continue;
-        }
-
-        let (command, parameters) = item.split_once(' ').unwrap_or((item, ""));
-        let item = TodoItem {
-            command: command.to_string(),
-            parameters: parameters.to_string(),
-        };
-
-        items.push(item);
-    }
-
-    Ok(items)
-}
-
-fn save_todo_list(items: &[TodoItem], path: &str) -> Result<()> {
-    let mut file = BufWriter::new(File::create(path)?);
-    for item in items {
-        writeln!(file, "{} {}", item.command, item.parameters)?;
-    }
-    Ok(())
 }
