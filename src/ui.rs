@@ -62,13 +62,18 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
     app.page_length = todo_list_area.height as usize - 2;
     frame.render_stateful_widget(todo_list, todo_list_area, todo_list_state);
 
-    render_vertical_scroll_bar(
-        frame,
+    let scrollbar_area = todo_list_area.inner(&Margin {
+        horizontal: 0,
+        vertical: 1,
+    });
+    if let Some(mut scrollbar_state) = scrollbar_state_from_offset(
         todo_items_count,
-        todo_list_area,
-        true,
+        scrollbar_area.height as usize,
         todo_list_state.offset(),
-    );
+    ) {
+        let scrollbar = Scrollbar::new(ScrollbarOrientation::VerticalRight);
+        frame.render_stateful_widget(scrollbar, scrollbar_area, &mut scrollbar_state);
+    }
 
     let footer_content: &[(&[&'static str], &'static str)] = match &mut app.mode {
         Mode::Main => {
@@ -188,13 +193,18 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
             frame.render_widget(Clear, original_todo_area);
             frame.render_widget(p, original_todo_area);
 
-            render_vertical_scroll_bar(
-                frame,
+            let scrollbar_area = original_todo_area.inner(&Margin {
+                horizontal: 0,
+                vertical: 1,
+            });
+            if let Some(mut scrollbar_state) = scrollbar_state_from_offset(
                 app.original_todo_list_lines.len(),
-                original_todo_area,
-                true,
+                scrollbar_area.height as usize,
                 *scroll as usize,
-            );
+            ) {
+                let scrollbar = Scrollbar::new(ScrollbarOrientation::VerticalRight);
+                frame.render_stateful_widget(scrollbar, scrollbar_area, &mut scrollbar_state);
+            }
 
             &[(&["ESC"], "dismiss")]
         }
@@ -271,25 +281,28 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
     frame.render_widget(footer, footer_area);
 }
 
-fn render_vertical_scroll_bar(
-    frame: &mut Frame,
-    scrollable_items_count: usize,
-    mut scrollable_area: Rect,
-    with_border: bool,
+fn scrollbar_state_from_offset(
+    content_length: usize,
+    viewport_content_length: usize,
     offset: usize,
-) {
-    let scrollbar = Scrollbar::new(ScrollbarOrientation::VerticalRight);
-    if with_border {
-        scrollable_area = scrollable_area.inner(&Margin {
-            horizontal: 0,
-            vertical: 1,
-        });
-    }
+) -> Option<ScrollbarState> {
+    scrollbar_position_from_offset(content_length, viewport_content_length, offset).map(
+        |position| {
+            ScrollbarState::new(content_length)
+                .viewport_content_length(viewport_content_length)
+                .position(position)
+        },
+    )
+}
 
-    let mut scrollbar_state =
-        ScrollbarState::new(scrollable_items_count.saturating_sub(scrollable_area.height as usize))
-            .position(offset);
-    frame.render_stateful_widget(scrollbar, scrollable_area, &mut scrollbar_state);
+fn scrollbar_position_from_offset(
+    content_length: usize,
+    viewport_content_length: usize,
+    offset: usize,
+) -> Option<usize> {
+    let max_offset = content_length.saturating_sub(viewport_content_length);
+    #[allow(clippy::unnecessary_lazy_evaluations)]
+    (max_offset > 0).then(|| offset * (content_length - 1) / max_offset)
 }
 
 fn max_command_len() -> usize {
