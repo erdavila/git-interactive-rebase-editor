@@ -1,12 +1,12 @@
-# git-visual-rebase
-A visual helper for Git rebase interactive mode.
+# git-interactive-rebase-editor
+A visual helper for Git interactive rebase.
 
 ![Screenshot](screenshot.png)
 
 ## Installing and building
 1. Clone this repository
 2. Build it with `cargo build --release`
-3. Copy `./target/release/git-visual-rebase` to your desired location.
+3. Copy `./target/release/git-interactive-rebase-editor` to your desired location.
 
 Alternativelly, use `cargo` to build and install at once:
 
@@ -17,7 +17,7 @@ cargo install --path <LOCAL_REPOSITORY_PATH>
 or:
 
 ```sh
-cargo install --git https://github.com/erdavila/git-visual-rebase.git
+cargo install --git https://github.com/erdavila/git-interactive-rebase-editor.git
 ```
 
 See the options for [`cargo install`](https://doc.rust-lang.org/cargo/commands/cargo-install.html).
@@ -35,13 +35,13 @@ git -c sequence.editor=<PATH_TO_BINARY> rebase -i ...
 
 Define an alias:
 ```sh
-git config --global alias.vrebase "-c sequence.editor=<PATH_TO_BINARY> rebase -i"
+git config --global alias.rebase-i "-c sequence.editor=<PATH_TO_BINARY> rebase -i"
 ```
 
 then rebase with:
 
 ```sh
-git vrebase ...
+git rebase-i ...
 ```
 
 ### Permanent use
@@ -66,6 +66,7 @@ Start the `<PATH_TO_BINARY>` without `/` and with drive name.
 E.g.: use `C:/...` instead of `/c/...`.
 
 #### Cygwin
-Cygwin requires the [`cygwin.sh`](./cygwin.sh) adapter script to ensure that the editor receives a path in Windows format.
+Cygwin requires the `git-interactive-rebase-editor.sh` adapter script to ensure that the editor receives a path in Windows format.
 
-In the commands above, instead of `sequence.editor=<PATH_TO_BINARY>`, use `sequence.editor='<PATH_TO_cygwin.sh> <PATH_TO_BINARY>'`.
+1. copy [`git-interactive-rebase-editor.sh`](./git-interactive-rebase-editor.sh) to the same place where the binary is located;
+2. in the commands above, for `<PATH_TO_BINARY>` use the path to `git-interactive-rebase-editor.sh` instead of the path to the binary.
