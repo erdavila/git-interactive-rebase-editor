@@ -1,6 +1,6 @@
 use ratatui::{
     layout::{Constraint, Direction, Layout, Margin, Rect},
-    style::{Style, Stylize},
+    style::Style,
     text::{Line, Span},
     widgets::{
         Block, Borders, Clear, ListItem, Padding, Paragraph, Scrollbar, ScrollbarOrientation,
@@ -45,7 +45,7 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
                 Constraint::Min(COMMANDS.len() as u16),
                 Constraint::Length(1),
             ])
-            .split(frame.size());
+            .split(frame.area());
         [chunks[0], chunks[1]]
     };
 
@@ -160,7 +160,7 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
                         Constraint::Min(1),
                         Constraint::Length(5),
                     ])
-                    .split(frame.size());
+                    .split(frame.area());
 
                 Layout::default()
                     .direction(Direction::Horizontal)
@@ -215,7 +215,7 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
 
             let dialog_width = question.len() as u16 + 2 * (PADDING + 1);
             let dialog_height = 4/*border + spacing A + question + spacing B*/ + rebase_confirmation.items().len() as u16 + 2/*spacing C + border*/;
-            let dialog_area = centered_rect(dialog_width, dialog_height, frame.size());
+            let dialog_area = centered_rect(dialog_width, dialog_height, frame.area());
 
             frame.render_widget(Block::default().borders(Borders::ALL), dialog_area);
 

@@ -3,7 +3,7 @@ use std::cmp::max;
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::{
     prelude::{Buffer, Rect},
-    style::{Style, Styled, Stylize},
+    style::{Style, Styled},
     widgets::{Block, StatefulWidget, Widget},
 };
 
@@ -57,7 +57,7 @@ impl TextInput {
         &self.content
     }
 
-    pub fn widget_and_state(&mut self) -> (TextInputWidget, &mut TextInputState) {
+    pub fn widget_and_state(&'_ mut self) -> (TextInputWidget<'_>, &'_ mut TextInputState) {
         let widget = TextInputWidget {
             content: &self.content,
             block: None,
@@ -177,11 +177,13 @@ impl<'a> StatefulWidget for TextInputWidget<'a> {
             .collect();
 
         buf.set_string(content_area.x, content_area.y, string, Style::default());
-        buf.get_mut(
+
+        if let Some(cell) = buf.cell_mut((
             content_area.x + state.cursor_position as u16 - state.offset as u16,
             content_area.y,
-        )
-        .set_style(Style::default().reversed().slow_blink());
+        )) {
+            cell.set_style(Style::default().reversed().slow_blink());
+        }
     }
 }
 

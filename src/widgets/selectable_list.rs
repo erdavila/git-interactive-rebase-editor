@@ -103,7 +103,7 @@ where
         self.items.index(self.selected())
     }
 
-    pub fn widget_and_state(&mut self) -> (List, &mut ListState) {
+    pub fn widget_and_state(&'_ mut self) -> (List<'_>, &'_ mut ListState) {
         let widget = List::new(self.items.clone());
         let state = &mut self.list_state;
         (widget, state)
