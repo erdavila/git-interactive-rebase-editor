@@ -142,8 +142,8 @@ impl<'a> Styled for TextInputWidget<'a> {
         self.style
     }
 
-    fn set_style(self, style: Style) -> Self::Item {
-        self.style(style)
+    fn set_style<S: Into<Style>>(self, style: S) -> Self::Item {
+        TextInputWidget::style(self, style.into())
     }
 }
 impl<'a> StatefulWidget for TextInputWidget<'a> {

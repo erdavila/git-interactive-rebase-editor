@@ -16,7 +16,10 @@ impl<B: Backend + Write> Tui<B> {
         Tui { terminal }
     }
 
-    pub fn enter(&mut self) -> Result<()> {
+    pub fn enter(&mut self) -> Result<()>
+    where
+        <B as Backend>::Error: Send + Sync + 'static,
+    {
         enable_raw_mode()?;
         execute!(self.terminal.backend_mut(), EnterAlternateScreen)?;
         self.terminal.hide_cursor()?;
@@ -25,7 +28,10 @@ impl<B: Backend + Write> Tui<B> {
         Ok(())
     }
 
-    pub fn reset(&mut self) -> Result<()> {
+    pub fn reset(&mut self) -> Result<()>
+    where
+        <B as Backend>::Error: Send + Sync + 'static,
+    {
         disable_raw_mode()?;
         execute!(self.terminal.backend_mut(), LeaveAlternateScreen)?;
         self.terminal.show_cursor()?;

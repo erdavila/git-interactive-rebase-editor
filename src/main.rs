@@ -60,7 +60,10 @@ fn setup_panic_hook() {
     }));
 }
 
-fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> Result<RebaseConfirmation> {
+fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> Result<RebaseConfirmation>
+where
+    <B as Backend>::Error: Send + Sync + 'static,
+{
     loop {
         terminal.draw(|f| {
             ui(f, app);

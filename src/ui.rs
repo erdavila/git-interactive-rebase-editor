@@ -62,7 +62,7 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
     app.page_length = todo_list_area.height as usize - 2;
     frame.render_stateful_widget(todo_list, todo_list_area, todo_list_state);
 
-    let scrollbar_area = todo_list_area.inner(&Margin {
+    let scrollbar_area = todo_list_area.inner(Margin {
         horizontal: 0,
         vertical: 1,
     });
@@ -193,7 +193,7 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
             frame.render_widget(Clear, original_todo_area);
             frame.render_widget(p, original_todo_area);
 
-            let scrollbar_area = original_todo_area.inner(&Margin {
+            let scrollbar_area = original_todo_area.inner(Margin {
                 horizontal: 0,
                 vertical: 1,
             });
@@ -219,7 +219,7 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
 
             frame.render_widget(Block::default().borders(Borders::ALL), dialog_area);
 
-            let dialog_inner_area = dialog_area.inner(&Margin::new(1, 1));
+            let dialog_inner_area = dialog_area.inner(Margin::new(1, 1));
             frame.render_widget(Clear, dialog_inner_area);
 
             let [question_area, confirmation_area] = {
@@ -232,7 +232,7 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
                 [chunks[0], chunks[1]]
             };
 
-            let mut question_area = question_area.inner(&Margin {
+            let mut question_area = question_area.inner(Margin {
                 horizontal: PADDING,
                 vertical: 0,
             });
