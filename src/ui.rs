@@ -1,4 +1,5 @@
 use ratatui::{
+    Frame,
     layout::{Constraint, Direction, Layout, Margin, Rect},
     style::Style,
     text::{Line, Span},
@@ -6,10 +7,9 @@ use ratatui::{
         Block, Borders, Clear, ListItem, Padding, Paragraph, Scrollbar, ScrollbarOrientation,
         ScrollbarState,
     },
-    Frame,
 };
 
-use crate::app::{App, Command, EditingWhat, Mode, RebaseConfirmation, TodoItem, COMMANDS};
+use crate::app::{App, COMMANDS, Command, EditingWhat, Mode, RebaseConfirmation, TodoItem};
 
 impl<'a> From<TodoItem> for ListItem<'a> {
     fn from(item: TodoItem) -> Self {
